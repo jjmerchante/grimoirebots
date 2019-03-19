@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block navbar%}
+    <nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
+      <a class="navbar-brand" href="#">
+        Cauldron v2
+      </a>
+
+      {% if authenticated %}
+      <div class="dropleft">
+          <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              {{ authenticated_username }}
+          </a>
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="/logout">Log out</a>
+            <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
+        </div>
+      </div>
+      {% endif %}
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">
+          <h4 class="font-weight-normal">Dashboard Status</h4>
+        </div>
+        <div class="card-body">
+          {{ dash_status }}
+        </div>
+      </div>
+    </div>
+{% endblock %}

@@ -15,7 +15,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from CauldronApp import views
 
 urlpatterns = [
+    path('github-login', views.github_login_callback),
+    path('logout', views.github_logout),
+    path('create-dashboard', views.create_dashboard),
+    path('dashboard/<int:dash_id>', views.show_dashboard_info),
+    path('', views.homepage),
     path('admin/', admin.site.urls),
 ]

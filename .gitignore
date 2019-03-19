@@ -5,6 +5,9 @@
 ### Personal ###
 env-cauldron/
 settings_secret.py
+tmp_projects_json/
+migrations/
+tmp/
 
 ### Django ###
 *.log
