@@ -3,6 +3,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServer
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 
+import logging
 import requests
 from github import Github
 
@@ -11,12 +12,10 @@ from CauldronApp.models import GithubToken, Task
 
 
 GH_ACCESS_OAUTH = 'https://github.com/login/oauth/access_token'
-GH_REDIRECT_URI = 'http://localhost:8000/github-login'
+GH_URI_IDENTITY = 'https://github.com/login/oauth/authorize'
 
 
-# Create your views here.
 def homepage(request):
-    # TODO: Check if we have the user authenticated
     context = dict()
     if request.user.is_authenticated:
         context['authenticated'] = True
@@ -24,7 +23,7 @@ def homepage(request):
     else:
         context['authenticated'] = False
 
-    context['gh_uri_identity'] = "https://github.com/login/oauth/authorize"
+    context['gh_uri_identity'] = GH_URI_IDENTITY
     context['gh_client_id'] = GH_CLIENT_ID
 
     return render(request, 'index.html', context=context)
@@ -42,21 +41,18 @@ def github_login_callback(request):
                             'code': code},
                       headers={'Accept': 'application/json'})
     if r.status_code != requests.codes.ok:
-        print('ERROR GitHub API', r.status_code, r.reason, r.text)
+        logging.error('GitHub API error %s %s %s', r.status_code, r.reason, r.text)
         return HttpResponseServerError('Error: GitHub endpoint')
     token = r.json().get('access_token', None)
     if not token:
-        print('ERROR GitHub Token not found', r.text)
+        logging.error('ERROR GitHub Token not found. %s', r.text)
         return HttpResponseServerError("Error. Couldn't retrieve a valid token")
 
     # Authenticate/register an user, and login
     gh = Github(token)
     gh_user = gh.get_user()
     dj_user = User.objects.filter(username=gh_user.login).first()
-    if dj_user:
-        print('This user was already here!')
-    else:
-        print('New user!')
+    if not dj_user:
         dj_user = User.objects.create_user(username=gh_user.login)
         dj_user.set_unusable_password()
         dj_user.save()
@@ -79,7 +75,6 @@ def github_logout(request):
     return HttpResponseRedirect('/')
 
 
-# TODO: @login_required
 def create_dashboard(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only allow POST')
@@ -96,10 +91,10 @@ def create_dashboard(request):
     # run_mordred(repo_url, request.user.githubtoken.token)
 
     if obj:
-        # TODO: Change to another ID (random)?
+        # TODO: Change to another ID? User / repository name
         return HttpResponseRedirect('/dashboard/{}'.format(obj.id))
     else:
-        # TODO: More detailed errors
+        # TODO: More detailed error
         return HttpResponseServerError('Something wrong happens')
 
 
@@ -115,7 +110,8 @@ def show_dashboard_info(request, dash_id):
 
     if dash_task:
         context['dash_status'] = dash_task.status
+        context['dash_name'] = dash_task.url
     else:
-        context['dash_status'] = "There was an error. No information about this dashboard. Try to reload."
+        context['dash_status'] = "No information about this dashboard. Try to reload."
 
     return render(request, 'dashboard.html', context=context)

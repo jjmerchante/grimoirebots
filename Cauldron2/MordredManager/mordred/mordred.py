@@ -1,6 +1,8 @@
 # import sys
 import json
 import tempfile
+import os
+import logging
 
 from sirmordred.config import Config
 from sirmordred.task_collection import TaskRawDataCollection
@@ -10,6 +12,7 @@ from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
 
 CONFIG_PATH = 'mordred/setup-default.cfg'
+JSON_DIR_PATH = 'projects_json'
 BACKEND_SECTIONS = ['git', 'github']  # add git
 
 
@@ -27,18 +30,23 @@ def _create_projects_file(repo):
     :param repo: URL for the repository
     :return: Path for the projects.json
     """
-    print("Creating projects.json for", repo)
+    logging.info("Creating projects.json for %s", repo)
+    if not os.path.isdir(JSON_DIR_PATH):
+        try:
+            os.mkdir(JSON_DIR_PATH)
+        except OSError:
+            logging.error("Creation of directory %s failed", JSON_DIR_PATH)
     # TODO: Check url
     projects = dict()
-    projects['Test Project'] = dict()
-    projects['Test Project']['git'] = list()
-    projects['Test Project']['git'].append(repo + '.git')
-    projects['Test Project']['github'] = list()
-    projects['Test Project']['github'].append(repo)
+    projects['Project'] = dict()
+    projects['Project']['git'] = list()
+    projects['Project']['git'].append(repo + '.git')
+    projects['Project']['github'] = list()
+    projects['Project']['github'].append(repo)
 
     projects_file = tempfile.NamedTemporaryFile('w+',
                                                 prefix='projects_',
-                                                dir='./tmp_projects_json',
+                                                dir=JSON_DIR_PATH,
                                                 delete=False)
     json.dump(projects, projects_file)
 
@@ -53,26 +61,32 @@ def _create_config(projects_file, gh_token):
 
 
 def _get_raw(config):
+    logging.info("Loading raw data...")
     for backend in BACKEND_SECTIONS:
+        logging.info("Loading raw data for %s", backend)
         TaskProjects(config).execute()  # Basically get the projects and save them in the TaskProjects
         task = TaskRawDataCollection(config, backend_section=backend)
         try:
             task.execute()
-            print("Loading raw data finished!")
+            logging.info("Loading raw data for %s finished!", backend)
         except Exception as e:
-            print("ERROR RAW", e)
+            # TODO: More specific exception
+            logging.warning("Error loading raw data from %s. Raising exception", backend)
             raise
 
 
 def _get_enrich(config):
+    logging.info("Enriching data...")
     for backend in BACKEND_SECTIONS:
+        logging.info("Enriching data for %s", backend)
         TaskProjects(config).execute()
         task = TaskEnrich(config, backend_section=backend)
         try:
             task.execute()
-            print("Loading enriched data finished!")
+            logging.info("Data for %s enriched!", backend)
         except Exception as e:
-            print("ERROR ENRICH", e)
+            # TODO: More specific exception
+            logging.warning("Error enriching data for %s. Raising exception", backend)
             raise
 
 
@@ -82,5 +96,3 @@ def _get_panels(config):
 
     task = TaskPanelsMenu(config)
     task.execute()
-
-    print("Panels creation finished!")
