@@ -42,12 +42,13 @@ class MordredManager:
                 try:
                     # TODO: Timeout inside or outside. Or add workers
                     run_mordred(repo=url, gh_token=token)
+                    q = "UPDATE CauldronApp_task SET status = 'COMPLETED' WHERE url='{}';".format(url)
+                    self._db_update(q)
                 except Exception:
+                    logging.warning('An error ocurred while analyzing %s' % url)
                     q = "UPDATE CauldronApp_task SET status = 'ERROR' WHERE url='{}';".format(url)
                     self._db_update(q)
 
-                q = "UPDATE CauldronApp_task SET status = 'COMPLETED' WHERE url='{}';".format(url)
-                self._db_update(q)
                 waiting_msg = True
 
             time.sleep(1)
