@@ -3,6 +3,7 @@ import json
 import tempfile
 import os
 import logging
+import argparse
 
 from sirmordred.config import Config
 from sirmordred.task_collection import TaskRawDataCollection
@@ -10,6 +11,7 @@ from sirmordred.task_enrich import TaskEnrich
 from sirmordred.task_projects import TaskProjects
 from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
+logging.basicConfig(level=logging.INFO)
 
 CONFIG_PATH = 'mordred/setup-default.cfg'
 JSON_DIR_PATH = 'projects_json'
@@ -96,3 +98,11 @@ def _get_panels(config):
 
     task = TaskPanelsMenu(config)
     task.execute()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Run mordred for a repository")
+    parser.add_argument('repo', help='repository to analyze')
+    parser.add_argument('key', help='key for GitHub')
+    args = parser.parse_args()
+    run_mordred(args.repo, args.key)

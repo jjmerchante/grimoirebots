@@ -2,6 +2,7 @@ import sqlite3
 import time
 from mordred.mordred import run_mordred
 import logging
+import subprocess
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,11 +29,12 @@ class MordredManager:
             if waiting_msg is True:
                 logging.info('Waiting for new repositories...')
                 waiting_msg = False
-            q = "SELECT url, gh_token_id FROM CauldronApp_task WHERE status = 'PENDING' ORDER BY last_modified;"
+            q = "SELECT id, url, gh_token_id FROM CauldronApp_task WHERE status = 'PENDING' ORDER BY last_modified;"
             row = self._db_select(q)
             if row is not None:
-                url = row[0]
-                id_user = row[1]
+                id = row[0]
+                url = row[1]
+                id_user = row[2]
                 logging.info("Analyzing %s", url)
 
                 q = "SELECT token FROM CauldronApp_GithubToken WHERE id = {};".format(id_user)
@@ -41,14 +43,21 @@ class MordredManager:
 
                 q = "UPDATE CauldronApp_task SET status = 'RUNNING' WHERE url='{}';".format(url)
                 self._db_update(q)
-                try:
-                    # TODO: Timeout inside or outside. Or add workers
-                    run_mordred(repo=url, gh_token=token)
-                    q = "UPDATE CauldronApp_task SET status = 'COMPLETED' WHERE url='{}';".format(url)
-                    self._db_update(q)
-                except Exception as e:
-                    logging.exception('An error ocurred while analyzing %s' % url)
+
+                # TODO: Timeout inside or outside. Or add workers
+                with open('dashboards_logs/dashboard_{}.log'.format(id), 'w') as f_log:
+                    proc = subprocess.Popen(['python3', '-u', 'mordred/mordred.py', url, token],
+                                            stdout=f_log,
+                                            stderr=subprocess.STDOUT)
+                    proc.wait()
+                    logging.info("Mordred analysis for {} finished with code: {}".format(url, proc.returncode))
+
+                if proc.returncode != 0:
+                    logging.warning('An error ocurred while analyzing %s' % url)
                     q = "UPDATE CauldronApp_task SET status = 'ERROR' WHERE url='{}';".format(url)
+                    self._db_update(q)
+                else:
+                    q = "UPDATE CauldronApp_task SET status = 'COMPLETED' WHERE url='{}';".format(url)
                     self._db_update(q)
 
                 waiting_msg = True
