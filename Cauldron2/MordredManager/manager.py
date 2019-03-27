@@ -3,6 +3,8 @@ import time
 from mordred.mordred import run_mordred
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 
 class MordredManager:
     def __init__(self, db):
@@ -44,8 +46,8 @@ class MordredManager:
                     run_mordred(repo=url, gh_token=token)
                     q = "UPDATE CauldronApp_task SET status = 'COMPLETED' WHERE url='{}';".format(url)
                     self._db_update(q)
-                except Exception:
-                    logging.warning('An error ocurred while analyzing %s' % url)
+                except Exception as e:
+                    logging.exception('An error ocurred while analyzing %s' % url)
                     q = "UPDATE CauldronApp_task SET status = 'ERROR' WHERE url='{}';".format(url)
                     self._db_update(q)
 
