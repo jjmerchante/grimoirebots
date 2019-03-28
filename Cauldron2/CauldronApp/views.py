@@ -23,6 +23,8 @@ def homepage(request):
     else:
         context['authenticated'] = False
 
+    tasks = Task.objects.filter()
+    context['dashboards'] = tasks
     context['gh_uri_identity'] = GH_URI_IDENTITY
     context['gh_client_id'] = GH_CLIENT_ID
 
