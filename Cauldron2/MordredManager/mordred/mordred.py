@@ -11,7 +11,7 @@ from sirmordred.task_enrich import TaskEnrich
 from sirmordred.task_projects import TaskProjects
 from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
 CONFIG_PATH = 'mordred/setup-default.cfg'
 JSON_DIR_PATH = 'projects_json'

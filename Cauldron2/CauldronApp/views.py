@@ -1,8 +1,10 @@
 from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServerError, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServerError, HttpResponseRedirect, JsonResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import ensure_csrf_cookie
 
+import os
 import logging
 import requests
 from github import Github
@@ -86,7 +88,7 @@ def create_dashboard(request):
     if not repo_url:
         return HttpResponseBadRequest('We need a URL for analyzing')
 
-    obj, created = Task.objects.get_or_create(
+    obj, _ = Task.objects.get_or_create(
         url=repo_url,
         defaults={'status': 'PENDING', 'gh_token': request.user.githubtoken},
     )
@@ -100,6 +102,7 @@ def create_dashboard(request):
         return HttpResponseServerError('Something wrong happens')
 
 
+@ensure_csrf_cookie
 def show_dashboard_info(request, dash_id):
     dash_task = Task.objects.filter(id=dash_id).first()
     # CREATE RESPONSE
@@ -111,9 +114,32 @@ def show_dashboard_info(request, dash_id):
         context['authenticated'] = False
 
     if dash_task:
-        context['dash_status'] = dash_task.status
-        context['dash_name'] = dash_task.url
-    else:
-        context['dash_status'] = "No information about this dashboard. Try to reload."
+        context['dashboard'] = dash_task
 
     return render(request, 'dashboard.html', context=context)
+
+
+def dash_logs(request, dash_id):
+    logfile = 'MordredManager/dashboards_logs/dashboard_{}.log'.format(dash_id)
+    task = Task.objects.filter(id=dash_id).first()
+    if not task:
+        return JsonResponse({'exists': False})
+    if not os.path.isfile(logfile):
+        # File not found but there is a task
+        return JsonResponse({'exists': True,
+                            'ready': False})
+    logs = {
+        'exists': True,
+        'ready': True,
+        'dash_id': dash_id,
+        'content': open(logfile, 'r').read(),
+        'more': True if task.status in ('RUNNING', 'PENDING') else False
+    }
+    return JsonResponse(logs)
+
+
+def dash_status(request, dash_id):
+    task = Task.objects.filter(id=dash_id).first()
+    if not task:
+        return JsonResponse({'status': 'UNKNOWN'})
+    return JsonResponse({'status': task.status})

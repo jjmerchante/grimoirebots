@@ -1,35 +1,115 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block css%}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
 
 {% block navbar %}
-    <nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
-      <a class="navbar-brand" href="#">
-        Cauldron v2
-      </a>
+<nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
+  <a class="navbar-brand" href="/">
+    Cauldron v2
+  </a>
 
-      {% if authenticated %}
-      <div class="dropleft">
-          <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{ authenticated_username }}
-          </a>
-          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-            <a class="dropdown-item" href="/logout">Log out</a>
-            <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
-        </div>
-      </div>
-      {% endif %}
-    </nav>
+  {% if authenticated %}
+  <div class="dropleft">
+      <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          {{ authenticated_username }}
+      </a>
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+        <a class="dropdown-item" href="/logout">Log out</a>
+        <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
+    </div>
+  </div>
+  {% endif %}
+</nav>
 {% endblock %}
 
 {% block content %}
-    <div class="container">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <h4 class="font-weight-normal">Dashboard Status</h4>
+<div class="container">
+  {% if dashboard %}
+    <!-- HIDDEN. To know the status of the dashboard on load -->
+    <span hidden="" id="initial-status">{{ dashboard.status }}</span>
+    <!-- Upper part -->
+    <div class="d-flex align-items-center">
+      <h1 class="mr-auto">Dashboard #{{dashboard.id}}</h1>
+      {% if dashboard.status == 'PENDING'%}
+      <button class="btn btn-secondary" type="button" disabled>
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        Pending...
+      </button>
+      {% elif dashboard.status == 'RUNNING' %}
+      <button class="btn btn-primary" type="button" disabled>
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        Running...
+      </button>
+      {% elif dashboard.status == 'COMPLETED' %}
+      <button class="btn btn-success" type="button" disabled>
+        <i class="fas fa-check"></i>
+        Completed
+      </button>
+      {% elif dashboard.status == 'ERROR' %}
+      <button class="btn btn-danger" type="button" disabled>
+        <i class="fas fa-times"></i>
+        Error
+      </button>
+      {% endif %}
+    </div>
+    <!-- card -->
+    <div class="card shadow-sm mb-3">
+
+      <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info" aria-selected="true">Information</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="logs-tab" data-toggle="tab" href="#logs" role="tab" aria-controls="logs" aria-selected="false">Job logs</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="tab-content" id="myTabContent">
+        <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+          <div class="row">
+            <label class="col-sm-2"> <strong>Author</strong></label>
+            <label class="col-sm-10">{{dashboard.gh_token.user}}</label>
+          </div>
+          <div class="row">
+            <label class="col-sm-2"> <strong>Last updated</strong></label>
+            <label class="col-sm-10">{{dashboard.last_modified}}</label>
+          </div>
+          <br>
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Repository</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">1</th>
+                <td>{{ dashboard.url }}</td>
+                <td>{{ dashboard.status }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="card-body">
-            {{ dash_status }}
-            {{ dash_name }}
+        <div class="tab-pane card-body fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+          <pre class="logger"><code class="log-content"></code></pre>
         </div>
       </div>
+
     </div>
+  {% else %}
+    <h1>Dashboard not found</h1>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="{% static 'js/dashboard.js' %}" charset="utf-8"></script>
+
 {% endblock %}

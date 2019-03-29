@@ -22,6 +22,8 @@ urlpatterns = [
     path('logout', views.github_logout),
     path('create-dashboard', views.create_dashboard),
     path('dashboard/<int:dash_id>', views.show_dashboard_info),
+    path('dashboard-logs/<int:dash_id>', views.dash_logs),
+    path('dashboard-status/<int:dash_id>', views.dash_status),
     path('', views.homepage),
     path('admin/', admin.site.urls),
 ]
