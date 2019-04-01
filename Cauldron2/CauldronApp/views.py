@@ -199,7 +199,7 @@ def dash_logs(request, dash_name):
             output += "{}\n".format(repo.status)
             continue
         output += open(logfile, 'r').read() + '\n'
-        if repo.status not in ('PENDING', 'RUNNING'):
+        if repo.status in ('PENDING', 'RUNNING'):
             more = True
 
     response = {

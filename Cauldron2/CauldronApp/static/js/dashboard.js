@@ -23,8 +23,8 @@ function getLogs(dash_id) {
                 setTimeout(getLogs, 2000, dash_id);
             }
         } else {
-            $('.log-content').html('Task not found or an error ocurred, try to reload the page.');
-        }        
+            $('.log-content').html('Task not found or an error occurred, try to reload the page.');
+        }
     });
 }
 
