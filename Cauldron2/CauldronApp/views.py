@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServerError, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -7,6 +7,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 import os
 import logging
 import requests
+from urllib.parse import urlparse
 from github import Github
 
 from Cauldron2.settings_secret import GH_CLIENT_ID, GH_CLIENT_SECRET
@@ -41,12 +42,14 @@ def homepage(request):
     return render(request, 'index.html', context=context)
 
 
-# TODO: Make templates for bad request and errors from GitHub endpoint
 def github_login_callback(request):
     # Github authentication
     code = request.GET.get('code', None)
     if not code:
-        return HttpResponseBadRequest("There isn't a code in the request")
+        return render(request, 'error.html', status=400,
+                      context={'title': 'Bad Request',
+                               'description': "The isn't a code in the GitHub callback"})
+
     r = requests.post(GH_ACCESS_OAUTH,
                       data={'client_id': GH_CLIENT_ID,
                             'client_secret': GH_CLIENT_SECRET,
@@ -54,11 +57,15 @@ def github_login_callback(request):
                       headers={'Accept': 'application/json'})
     if r.status_code != requests.codes.ok:
         logging.error('GitHub API error %s %s %s', r.status_code, r.reason, r.text)
-        return HttpResponseServerError('Error: GitHub endpoint')
+        return render(request, 'error.html', status=500,
+                      context={'title': 'GitHub error',
+                               'description': "GitHub API error"})
     token = r.json().get('access_token', None)
     if not token:
         logging.error('ERROR GitHub Token not found. %s', r.text)
-        return HttpResponseServerError("Error. Couldn't retrieve a valid token")
+        return render(request, 'error.html', status=500,
+                      context={'title': 'GitHub error',
+                               'description': "Error getting the token from GitHub endpoint"})
 
     # Authenticate/register an user, and login
     gh = Github(token)
@@ -90,13 +97,21 @@ def github_logout(request):
 
 def create_dashboard(request):
     if request.method != 'POST':
-        return HttpResponseBadRequest('Only allow POST')
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Method Not Allowed',
+                               'description': "Only POST methods allowed"})
     if not request.user.is_authenticated:
-        return HttpResponse('Log in with your github account first <a href="/">go homepage</a>')  # TODO: template?
+        return render(request, 'error.html', status=403,
+                      context={'title': 'Log in first',
+                               'description': "Log in with your github account first <a href="/">go homepage</a>"})
     repo_url = request.POST.get('url', None)
     org_name = request.POST.get('gh-org', None)
 
     if repo_url:
+        if not valid_github_url(repo_url):
+            return render(request, 'error.html', status=400,
+                          context={'title': 'Invalid URL',
+                                   'description': "Are you sure it's a GitHub URL? Don't try to break me :)"})
         owner, repo_name = parse_gh_url(repo_url)
         dash_name = "{}-{}".format(owner, repo_name)
 
@@ -114,7 +129,9 @@ def create_dashboard(request):
         fill_dashboard(dash, git_list, github_list, request.user.githubuser)
         return HttpResponseRedirect('/dashboard/' + dash.name)
     else:
-        return HttpResponseBadRequest('We need URL, user or organization for analyzing')
+        return render(request, 'error.html', status=404,
+                      context={'title': 'URL/user not found',
+                               'description': "We need URL, user or organization for analyzing"})
 
 
 def fill_dashboard(dash, git_list, gh_list, githubuser):
@@ -173,7 +190,9 @@ def get_dashboard_status(dash_name):
 @ensure_csrf_cookie
 def show_dashboard(request, dash_name):
     if request.method != 'GET':
-        return HttpResponseBadRequest('Only allow GET')
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Method Not Allowed',
+                               'description': "Only GET methods allowed"})
     dash = Dashboard.objects.filter(name=dash_name).first()
     # CREATE RESPONSE
     context = dict()
@@ -192,7 +211,9 @@ def dash_logs(request, dash_name):
     output = ""
     more = False
     if request.method != 'GET':
-        return HttpResponseBadRequest('Only allow GET')
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Method Not Allowed',
+                               'description': "Only GET methods allowed"})
     repos = Repository.objects.filter(dashboards__name=dash_name)
     if len(repos) == 0:
         return JsonResponse({'exists': False})
@@ -217,7 +238,9 @@ def dash_logs(request, dash_name):
 
 def repo_status(request, repo_id):
     if request.method != 'GET':
-        return HttpResponseBadRequest('Only allow GET')
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Method Not Allowed',
+                               'description': "Only GET methods allowed"})
     repo = Repository.objects.filter(id=repo_id).first()
     if not repo:
         return JsonResponse({'status': 'UNKNOWN'})
@@ -230,6 +253,18 @@ def dash_status(request, dash_name):
 
 
 def parse_gh_url(url):
-    owner = url.split('/')[-2]
-    repo = url.split('/')[-1]
-    return owner, repo
+    """
+    Should be validated by valid_github_url
+    :param url:
+    :return:
+    """
+    o = urlparse(url)
+    return o.path.split('/')[1:]
+
+
+def valid_github_url(url):
+    o = urlparse(url)
+    print(o)
+    return (o.scheme == 'https' and
+            o.netloc == 'github.com' and
+            len(o.path.split('/')) == 3)
