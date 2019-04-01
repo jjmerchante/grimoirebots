@@ -66,9 +66,11 @@ def github_login_callback(request):
     # Delete previous token and Update/Add the new token
     previous_token = GithubUser.objects.filter(user=dj_user).first()
     if previous_token:
-        previous_token.delete()
-    token_entry = GithubUser(user=dj_user, token=token)
-    token_entry.save()
+        previous_token.token = token
+        previous_token.save()
+    else:
+        token_entry = GithubUser(user=dj_user, token=token)
+        token_entry.save()
 
     login(request, dj_user)
 
