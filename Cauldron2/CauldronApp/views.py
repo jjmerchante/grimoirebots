@@ -21,14 +21,20 @@ GH_URI_IDENTITY = 'https://github.com/login/oauth/authorize'
 def homepage(request):
     context = dict()
     if request.user.is_authenticated:
-        context['authenticated'] = True
-        context['authenticated_username'] = request.user.username
-    else:
-        context['authenticated'] = False
+        context['auth_user'] = request.user
 
     dashboards = Dashboard.objects.filter()
-    #TODO: Add more info of dashboards in context like status
-    context['dashboards'] = dashboards
+    context_dbs = []
+    for db in dashboards:
+        status = get_dashboard_status(db.name)
+
+        completed = sum(1 for repo in status['repos'] if repo['status'] == 'COMPLETED')
+        context_dbs.append({'status': status['general'],
+                            'name': db.name,
+                            'completed': completed,
+                            'total': len(status['repos'])})
+
+    context['dashboards'] = context_dbs
     context['gh_uri_identity'] = GH_URI_IDENTITY
     context['gh_client_id'] = GH_CLIENT_ID
 
@@ -150,7 +156,6 @@ def get_dashboard_status(dash_name):
         'general': 'UNKNOWN',
         'exists': True
     }
-
     for repo in repos:
         status['repos'].append({'id': repo.id, 'status': repo.status})
         if repo.status == 'RUNNING':
@@ -158,9 +163,9 @@ def get_dashboard_status(dash_name):
             break  # Nothing more to do, it is running
         elif repo.status == 'PENDING':
             status['general'] = 'PENDING'
-        elif (repo.status is 'ERROR') and (status is not 'PENDING'):
+        elif (repo.status == 'ERROR') and (status != 'PENDING'):
             status['general'] = 'ERROR'
-        elif (repo.status is 'COMPLETED') and (status is not ('PENDING', 'ERROR')):
+        elif (repo.status == 'COMPLETED') and (status not in ('PENDING', 'ERROR')):
             status['general'] = 'COMPLETED'
     return status
 
@@ -173,10 +178,7 @@ def show_dashboard(request, dash_name):
     # CREATE RESPONSE
     context = dict()
     if request.user.is_authenticated:
-        context['authenticated'] = True
-        context['authenticated_username'] = request.user.username
-    else:
-        context['authenticated'] = False
+        context['auth_user'] = request.user
 
     if dash:
         context['dashboard'] = dash

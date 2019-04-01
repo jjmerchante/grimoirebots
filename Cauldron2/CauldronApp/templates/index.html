@@ -6,10 +6,10 @@
         Cauldron v2
       </a>
 
-      {% if authenticated %}
+      {% if auth_user %}
       <div class="dropleft">
           <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{ authenticated_username }}
+              {{ auth_user.username }}
           </a>
           <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
             <a class="dropdown-item" href="/logout">Log out</a>
@@ -22,80 +22,88 @@
 
 {% block content %}
     <div class="container">
-      {% if not authenticated %}
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <h4 class="font-weight-normal">GitHub authentication</h4>
-        </div>
-        <div class="card-body">
-          <form action="{{ gh_uri_identity }}" method="GET">
-            <div class="from-group">
-              <label>We need your token for analyzing your repository</label>
+      <div class="row">
+        <div class="col-md-4">
+          {% if not auth_user %}
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">
+              <h4 class="font-weight-normal">GitHub authentication</h4>
             </div>
-            <input type="hidden" name="client_id" value="{{ gh_client_id }}">
-            <button type="submit" class="btn btn-outline-primary">GitHub Login</button>
-          </form>
-        </div>
-      </div>
-      {% else %}
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <h4 class="font-weight-normal">Dashboard for a repository</h4>
-        </div>
-        <div class="card-body">
-          <form action="/create-dashboard" method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-              <label for="repositoryURL">Repository URL</label>
-              <input type="text" name="url" class="form-control" id="repositoryURL" placeholder="Enter repository">
+            <div class="card-body">
+              <form action="{{ gh_uri_identity }}" method="GET">
+                <div class="from-group">
+                  <label>We need your token for analyzing your repositories. You can revoke the access later.</label>
+                </div>
+                <input type="hidden" name="client_id" value="{{ gh_client_id }}">
+                <button type="submit" class="btn btn-outline-primary">GitHub Login</button>
+              </form>
             </div>
-            <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
-          </form>
-        </div>
-      </div>
+          </div>
+          {% else %}
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">
+              <h4 class="font-weight-normal">Dashboard for a repository</h4>
+            </div>
+            <div class="card-body">
+              <form action="/create-dashboard" method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label for="repositoryURL">Repository URL</label>
+                  <input type="text" name="url" class="form-control" id="repositoryURL" placeholder="Enter repository">
+                </div>
+                <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
+              </form>
+            </div>
+          </div>
 
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <h4 class="font-weight-normal">Dashboard for a user or organization</h4>
-        </div>
-        <div class="card-body">
-          <form action="/create-dashboard" method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-              <label for="gh-org">GitHub Owner (User/Organization)</label>
-              <input type="text" name="gh-org" class="form-control" id="gh-org" placeholder="Enter a name">
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">
+              <h4 class="font-weight-normal">Dashboard for a user or organization</h4>
             </div>
-            <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
-          </form>
+            <div class="card-body">
+              <form action="/create-dashboard" method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label for="gh-org">GitHub Owner (User/Organization)</label>
+                  <input type="text" name="gh-org" class="form-control" id="gh-org" placeholder="Enter a name">
+                </div>
+                <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
         </div>
-      </div>
+        <div class="col-md-8">
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">
+              <h4 class="font-weight-normal">List of dashboards</h4>
+            </div>
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Completed</th>
+                    <!--<th scope="col">Author</th>-->
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for db in dashboards %}
+                  <tr>
+                    <td><a href="/dashboard/{{db.name}}">{{db.name}}</a></td>
+                    <td>{{db.status}}</td>
+                    <td>{{db.completed}}/{{db.total}}</td>
+                    <!--<td>{{db.creator}}</td>-->
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          
 
-      {% endif %}
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <h4 class="font-weight-normal">List of dashboards</h4>
-        </div>
-        <div class="card-body">
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Status</th>
-                <th scope="col">Last update</th>
-                <th scope="col">Author</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for db in dashboards %}
-              <tr>
-                <td><a href="/dashboard/{{db.name}}">Dashboard {{db.name}}</a></td>
-                <td>{{db.status}}</td>
-                <td>{{db.last_update}}</td>
-                <td>{{db.creator.user}}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+
+          </div>
         </div>
       </div>
     </div>

@@ -11,10 +11,10 @@
     Cauldron v2
   </a>
 
-  {% if authenticated %}
+  {% if auth_user %}
   <div class="dropleft">
       <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          {{ authenticated_username }}
+          {{ auth_user.username }}
       </a>
       <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
         <a class="dropdown-item" href="/logout">Log out</a>
@@ -71,10 +71,10 @@
 
       <div class="tab-content" id="myTabContent">
         <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
-          <div class="row">
+          <!--<div class="row">
             <label class="col-sm-2"> <strong>Creator</strong></label>
             <label class="col-sm-10">{{dashboard.creator.user}}</label>
-          </div>
+          </div>-->
 <!--          <div class="row">-->
 <!--            <label class="col-sm-2"> <strong>Last updated</strong></label>-->
 <!--            <label class="col-sm-10">{{dashboard.last_modified}}</label>-->
