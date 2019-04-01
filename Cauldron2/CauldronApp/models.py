@@ -14,17 +14,26 @@ def validate_status(status):
 
 
 # Create your models here.
-class GithubToken(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+class GithubUser(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, unique=True)
     token = models.CharField(max_length=100)
 
 
-class Task(models.Model):
-    """
-    status: PENDING, RUNNING, COMPLETED
-    """
-    url = models.URLField()
-    status = models.CharField(max_length=15, validators=[validate_status])
-    last_modified = models.DateTimeField(auto_now=True)
-    gh_token = models.ForeignKey(GithubToken, on_delete=models.CASCADE)
+class Dashboard(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    creator = models.ForeignKey(GithubUser,
+                                on_delete=models.SET_NULL,
+                                blank=True,
+                                null=True)
 
+
+class Repository(models.Model):
+    """
+    status: PENDING, RUNNING, COMPLETED, ERROR
+    """
+    url_gh = models.URLField()
+    url_git = models.URLField()
+    dashboards = models.ManyToManyField(Dashboard)
+    last_modified = models.DateTimeField(auto_now=True)
+    gh_token = models.ForeignKey(GithubUser, on_delete=models.CASCADE)
+    status = models.CharField(max_length=15, validators=[validate_status])

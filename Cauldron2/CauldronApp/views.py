@@ -10,7 +10,8 @@ import requests
 from github import Github
 
 from Cauldron2.settings_secret import GH_CLIENT_ID, GH_CLIENT_SECRET
-from CauldronApp.models import GithubToken, Task
+from CauldronApp.models import GithubUser, Dashboard, Repository
+from CauldronApp.githubsync import GitHubSync
 
 
 GH_ACCESS_OAUTH = 'https://github.com/login/oauth/access_token'
@@ -25,8 +26,9 @@ def homepage(request):
     else:
         context['authenticated'] = False
 
-    tasks = Task.objects.filter()
-    context['dashboards'] = tasks
+    dashboards = Dashboard.objects.filter()
+    #TODO: Add more info of dashboards in context like status
+    context['dashboards'] = dashboards
     context['gh_uri_identity'] = GH_URI_IDENTITY
     context['gh_client_id'] = GH_CLIENT_ID
 
@@ -62,10 +64,10 @@ def github_login_callback(request):
         dj_user.save()
 
     # Delete previous token and Update/Add the new token
-    previous_token = GithubToken.objects.filter(user=dj_user).first()
+    previous_token = GithubUser.objects.filter(user=dj_user).first()
     if previous_token:
         previous_token.delete()
-    token_entry = GithubToken(user=dj_user, token=token)
+    token_entry = GithubUser(user=dj_user, token=token)
     token_entry.save()
 
     login(request, dj_user)
@@ -74,7 +76,6 @@ def github_login_callback(request):
 
 
 def github_logout(request):
-    # TODO: Delete the token?
     logout(request)
     return HttpResponseRedirect('/')
 
@@ -83,28 +84,90 @@ def create_dashboard(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only allow POST')
     if not request.user.is_authenticated:
-        return HttpResponse('Log in with your github account first <a href="/">go homepage</a>')  # TODO: More detailed error
+        return HttpResponse('Log in with your github account first <a href="/">go homepage</a>')  # TODO: template?
     repo_url = request.POST.get('url', None)
-    if not repo_url:
-        return HttpResponseBadRequest('We need a URL for analyzing')
+    org_name = request.POST.get('gh-org', None)
 
-    obj, _ = Task.objects.get_or_create(
-        url=repo_url,
-        defaults={'status': 'PENDING', 'gh_token': request.user.githubtoken},
-    )
-    # run_mordred(repo_url, request.user.githubtoken.token)
+    if repo_url:
+        owner, repo_name = parse_gh_url(repo_url)
+        dash_name = "{}-{}".format(owner, repo_name)
 
-    if obj:
-        # TODO: Change to another ID? User / repository name
-        return HttpResponseRedirect('/dashboard/{}'.format(obj.id))
+        dash, created = Dashboard.objects.get_or_create(name=dash_name, defaults={'creator': request.user.githubuser})
+        if created:
+            fill_dashboard(dash, [repo_url + '.git'], [repo_url], request.user.githubuser)
+        return HttpResponseRedirect('/dashboard/' + dash.name)
+
+    elif org_name:
+        gh_sync = GitHubSync(request.user.githubuser.token)
+        git_list, github_list = gh_sync.get_repo(org_name, False)
+        dash, created = Dashboard.objects.get_or_create(name=org_name, defaults={'creator': request.user.githubuser})
+        if not created:
+            return HttpResponseRedirect('/dashboard/' + dash.name)
+        fill_dashboard(dash, git_list, github_list, request.user.githubuser)
+        return HttpResponseRedirect('/dashboard/' + dash.name)
     else:
-        # TODO: More detailed error
-        return HttpResponseServerError('Something wrong happens')
+        return HttpResponseBadRequest('We need URL, user or organization for analyzing')
+
+
+def fill_dashboard(dash, git_list, gh_list, githubuser):
+    assert len(git_list) == len(gh_list), 'Git and Github lists are not the same length for ' + dash.name
+    for repo_git, repo_gh in zip(git_list, gh_list):
+        repo_obj = Repository.objects.filter(url_git=repo_git).first()
+        if not repo_obj:
+            repo_obj = Repository(
+                url_git=repo_git,
+                url_gh=repo_gh,
+                gh_token=githubuser,
+                status='PENDING')
+            repo_obj.save()
+            repo_obj.dashboards.add(dash)
+        else:
+            repo_obj.dashboards.add(dash)
+
+
+def get_dashboard_status(dash_name):
+    """
+    General status:
+    If no repos -> UNKNOWN
+    1. If any repo is running -> return RUNNING
+    2. Else if any repo pending -> return PENDING
+    3. Else if any repo error -> return ERROR
+    4. Else -> return COMPLETED
+    :param dash_name: name of the dashboard
+    :return: Status of the dashboard depending on the the previous rules
+    """
+    repos = Repository.objects.filter(dashboards__name=dash_name)
+    if len(repos) == 0:
+        return {
+            'repos': [],
+            'general': 'UNKNOWN',
+            'exists': False
+        }
+    status = {
+        'repos': [],
+        'general': 'UNKNOWN',
+        'exists': True
+    }
+
+    for repo in repos:
+        status['repos'].append({'id': repo.id, 'status': repo.status})
+        if repo.status == 'RUNNING':
+            status['general'] = 'RUNNING'
+            break  # Nothing more to do, it is running
+        elif repo.status == 'PENDING':
+            status['general'] = 'PENDING'
+        elif (repo.status is 'ERROR') and (status is not 'PENDING'):
+            status['general'] = 'ERROR'
+        elif (repo.status is 'COMPLETED') and (status is not ('PENDING', 'ERROR')):
+            status['general'] = 'COMPLETED'
+    return status
 
 
 @ensure_csrf_cookie
-def show_dashboard_info(request, dash_id):
-    dash_task = Task.objects.filter(id=dash_id).first()
+def show_dashboard(request, dash_name):
+    if request.method != 'GET':
+        return HttpResponseBadRequest('Only allow GET')
+    dash = Dashboard.objects.filter(name=dash_name).first()
     # CREATE RESPONSE
     context = dict()
     if request.user.is_authenticated:
@@ -113,33 +176,56 @@ def show_dashboard_info(request, dash_id):
     else:
         context['authenticated'] = False
 
-    if dash_task:
-        context['dashboard'] = dash_task
+    if dash:
+        context['dashboard'] = dash
+        context['dashboard_status'] = get_dashboard_status(dash_name)['general']
+        context['repositories'] = Repository.objects.filter(dashboards__name=dash_name)
 
     return render(request, 'dashboard.html', context=context)
 
 
-def dash_logs(request, dash_id):
-    logfile = 'MordredManager/dashboards_logs/dashboard_{}.log'.format(dash_id)
-    task = Task.objects.filter(id=dash_id).first()
-    if not task:
+def dash_logs(request, dash_name):
+    output = ""
+    more = False
+    if request.method != 'GET':
+        return HttpResponseBadRequest('Only allow GET')
+    repos = Repository.objects.filter(dashboards__name=dash_name)
+    if len(repos) == 0:
         return JsonResponse({'exists': False})
-    if not os.path.isfile(logfile):
-        # File not found but there is a task
-        return JsonResponse({'exists': True,
-                            'ready': False})
-    logs = {
+    for repo in repos:
+        logfile = 'MordredManager/dashboards_logs/repository_{}.log'.format(repo.id)
+        output += "<strong>{}</strong>\n".format(repo.url_gh)
+        if not os.path.isfile(logfile):
+            output += "{}\n".format(repo.status)
+            continue
+        output += open(logfile, 'r').read() + '\n'
+        if repo.status not in ('PENDING', 'RUNNING'):
+            more = True
+
+    response = {
         'exists': True,
-        'ready': True,
-        'dash_id': dash_id,
-        'content': open(logfile, 'r').read(),
-        'more': True if task.status in ('RUNNING', 'PENDING') else False
+        'content': output,
+        'more': more
     }
-    return JsonResponse(logs)
+
+    return JsonResponse(response)
 
 
-def dash_status(request, dash_id):
-    task = Task.objects.filter(id=dash_id).first()
-    if not task:
+def repo_status(request, repo_id):
+    if request.method != 'GET':
+        return HttpResponseBadRequest('Only allow GET')
+    repo = Repository.objects.filter(id=repo_id).first()
+    if not repo:
         return JsonResponse({'status': 'UNKNOWN'})
-    return JsonResponse({'status': task.status})
+    return JsonResponse({'status': repo.status})
+
+
+def dash_status(request, dash_name):
+    status = get_dashboard_status(dash_name)
+    return JsonResponse({'status': status})
+
+
+def parse_gh_url(url):
+    owner = url.split('/')[-2]
+    repo = url.split('/')[-1]
+    return owner, repo

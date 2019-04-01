@@ -8,7 +8,6 @@ $(document).ready(function(){
             }
         }
     });
-
     var dash_id = window.location.pathname.split('/')[2];
     getLogs(dash_id);
     getStatus(dash_id);
@@ -17,15 +16,12 @@ $(document).ready(function(){
 
 function getLogs(dash_id) {
     $.getJSON('/dashboard-logs/' + dash_id, function (data) {
-        if (data && data.exists && data.ready) {
+        if (data && data.exists) {
             $('.log-content').html('');
             $('.log-content').html(data.content);
             if (data.more) {
-                setTimeout(getLogs, 1000, dash_id);
+                setTimeout(getLogs, 2000, dash_id);
             }
-        } else if(data && data.exists && !data.ready){ 
-            $('.log-content').html('Logs not ready... Retrying');
-            setTimeout(getLogs, 1000, dash_id);
         } else {
             $('.log-content').html('Task not found or an error ocurred, try to reload the page.');
         }        
@@ -39,17 +35,21 @@ function getStatus(dash_id) {
     var initial_status = $('#initial-status').html();
 
     $.getJSON('/dashboard-status/' + dash_id, function (data) {
-        if (!data) {
-            console.log('Bad response from server in /dashboard-status/' + dash_id);
+        if (!data || !data.status.exists) {
+            console.log('Dashboard not found /dashboard/' + dash_id);
         } else {
-            console.log('Status: ' + data.status);
-            if (data.status == 'PENDING' || data.status == 'RUNNING') {
-                setTimeout(getStatus, 2000, dash_id);
+            for (var i = 0; i < data.status.repos.length; i++){
+                var repo = data.status.repos[i];
+                if ($('#repo-' + repo.id + "-status").html() != repo.status){
+                    $('#repo-' + repo.id + "-status").html(repo.status)
+                }
             }
-            if (data.status != initial_status) {
-                console.log('The status has changed: initial' + initial_status + '. Now: ' + data.status);
-                window.location.reload();
-            }   
+            if (data.status.general != 'PENDING' && data.status.general != initial_status) {
+                location.reload()
+            }
+            if (data.status.general == 'PENDING' || data.status.general == 'RUNNING') {
+                setTimeout(getStatus, 3000, dash_id);
+            }
         }
     });
 }

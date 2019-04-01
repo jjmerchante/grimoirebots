@@ -13,26 +13,26 @@ from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
 # logging.basicConfig(level=logging.INFO)
 
-CONFIG_PATH = 'mordred/setup-default.cfg'
+CONFIG_PATH = 'mordred/setup-default-local-full.cfg'
 JSON_DIR_PATH = 'projects_json'
 BACKEND_SECTIONS = ['git', 'github']  # add git
 
 
-def run_mordred(repo, gh_token):
-    projects_file = _create_projects_file(repo)
+def run_mordred(repo_gh, repo_git, gh_token):
+    projects_file = _create_projects_file(repo_gh, repo_git)
     cfg = _create_config(projects_file, gh_token)
     _get_raw(cfg)
     _get_enrich(cfg)
     # _get_panels(cfg)
 
 
-def _create_projects_file(repo):
+def _create_projects_file(repo_gh, repo_git):
     """
     Check the source of the repository and create the projects.json for it
     :param repo: URL for the repository
     :return: Path for the projects.json
     """
-    logging.info("Creating projects.json for %s", repo)
+    logging.info("Creating projects.json for %s", repo_gh)
     if not os.path.isdir(JSON_DIR_PATH):
         try:
             os.mkdir(JSON_DIR_PATH)
@@ -42,9 +42,9 @@ def _create_projects_file(repo):
     projects = dict()
     projects['Project'] = dict()
     projects['Project']['git'] = list()
-    projects['Project']['git'].append(repo + '.git')
+    projects['Project']['git'].append(repo_git)
     projects['Project']['github'] = list()
-    projects['Project']['github'].append(repo)
+    projects['Project']['github'].append(repo_gh)
 
     projects_file = tempfile.NamedTemporaryFile('w+',
                                                 prefix='projects_',
@@ -102,7 +102,8 @@ def _get_panels(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run mordred for a repository")
-    parser.add_argument('repo', help='repository to analyze')
+    parser.add_argument('repo_gh', help='Github repository to analyze')
+    parser.add_argument('repo_git', help='Git repository to analyze')
     parser.add_argument('key', help='key for GitHub')
     args = parser.parse_args()
-    run_mordred(args.repo, args.key)
+    run_mordred(args.repo_gh, args.repo_git, args.key)

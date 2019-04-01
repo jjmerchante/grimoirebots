@@ -29,26 +29,26 @@
 <div class="container">
   {% if dashboard %}
     <!-- HIDDEN. To know the status of the dashboard on load -->
-    <span hidden="" id="initial-status">{{ dashboard.status }}</span>
+    <span hidden="" id="initial-status">{{ dashboard_status }}</span>
     <!-- Upper part -->
     <div class="d-flex align-items-center">
-      <h1 class="mr-auto">Dashboard #{{dashboard.id}}</h1>
-      {% if dashboard.status == 'PENDING'%}
+      <h1 class="mr-auto">Dashboard for <strong>{{dashboard.name}}</strong></h1>
+      {% if dashboard_status == 'PENDING'%}
       <button class="btn btn-secondary" type="button" disabled>
         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         Pending...
       </button>
-      {% elif dashboard.status == 'RUNNING' %}
+      {% elif dashboard_status == 'RUNNING' %}
       <button class="btn btn-primary" type="button" disabled>
         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         Running...
       </button>
-      {% elif dashboard.status == 'COMPLETED' %}
+      {% elif dashboard_status == 'COMPLETED' %}
       <button class="btn btn-success" type="button" disabled>
         <i class="fas fa-check"></i>
         Completed
       </button>
-      {% elif dashboard.status == 'ERROR' %}
+      {% elif dashboard_status == 'ERROR' %}
       <button class="btn btn-danger" type="button" disabled>
         <i class="fas fa-times"></i>
         Error
@@ -72,13 +72,13 @@
       <div class="tab-content" id="myTabContent">
         <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
           <div class="row">
-            <label class="col-sm-2"> <strong>Author</strong></label>
-            <label class="col-sm-10">{{dashboard.gh_token.user}}</label>
+            <label class="col-sm-2"> <strong>Creator</strong></label>
+            <label class="col-sm-10">{{dashboard.creator.user}}</label>
           </div>
-          <div class="row">
-            <label class="col-sm-2"> <strong>Last updated</strong></label>
-            <label class="col-sm-10">{{dashboard.last_modified}}</label>
-          </div>
+<!--          <div class="row">-->
+<!--            <label class="col-sm-2"> <strong>Last updated</strong></label>-->
+<!--            <label class="col-sm-10">{{dashboard.last_modified}}</label>-->
+<!--          </div>-->
           <br>
           <table class="table table-hover">
             <thead>
@@ -89,11 +89,14 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <th scope="row">1</th>
-                <td>{{ dashboard.url }}</td>
-                <td>{{ dashboard.status }}</td>
+            {% for repo in repositories %}
+              <tr class="repo-entry">
+                <th scope="row">{{ forloop.counter }}</th>
+                <td>{{ repo.url_gh }}</td>
+                <td id="repo-{{repo.id}}-status">{{ repo.status }}</td>
+
               </tr>
+            {% endfor %}
             </tbody>
           </table>
         </div>
@@ -110,6 +113,7 @@
 {% endblock %}
 
 {% block javascript %}
+
 <script src="{% static 'js/dashboard.js' %}" charset="utf-8"></script>
 
 {% endblock %}

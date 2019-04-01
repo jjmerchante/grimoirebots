@@ -40,7 +40,7 @@
       {% else %}
       <div class="card shadow-sm mb-3">
         <div class="card-header">
-          <h4 class="font-weight-normal">Dashboard</h4>
+          <h4 class="font-weight-normal">Dashboard for a repository</h4>
         </div>
         <div class="card-body">
           <form action="/create-dashboard" method="POST">
@@ -53,6 +53,23 @@
           </form>
         </div>
       </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">
+          <h4 class="font-weight-normal">Dashboard for a user or organization</h4>
+        </div>
+        <div class="card-body">
+          <form action="/create-dashboard" method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+              <label for="gh-org">GitHub Owner (User/Organization)</label>
+              <input type="text" name="gh-org" class="form-control" id="gh-org" placeholder="Enter a name">
+            </div>
+            <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
+          </form>
+        </div>
+      </div>
+
       {% endif %}
       <div class="card shadow-sm mb-3">
         <div class="card-header">
@@ -71,10 +88,10 @@
             <tbody>
               {% for db in dashboards %}
               <tr>
-                <td><a href="/dashboard/{{db.id}}">Dashboard {{db.id}}</a></td>
+                <td><a href="/dashboard/{{db.name}}">Dashboard {{db.name}}</a></td>
                 <td>{{db.status}}</td>
-                <td>{{db.last_modified}}</td>
-                <td>{{db.gh_token.user}}</td>
+                <td>{{db.last_update}}</td>
+                <td>{{db.creator.user}}</td>
               </tr>
               {% endfor %}
             </tbody>
