@@ -177,12 +177,11 @@ def get_dashboard_status(dash_name):
         status['repos'].append({'id': repo.id, 'status': repo.status})
         if repo.status == 'RUNNING':
             status['general'] = 'RUNNING'
-            break  # Nothing more to do, it is running
-        elif repo.status == 'PENDING':
+        elif repo.status == 'PENDING' and (status['general'] != 'RUNNING'):
             status['general'] = 'PENDING'
-        elif (repo.status == 'ERROR') and (status != 'PENDING'):
+        elif (repo.status == 'ERROR') and (status['general'] not in ('RUNNING', 'PENDING')):
             status['general'] = 'ERROR'
-        elif (repo.status == 'COMPLETED') and (status not in ('PENDING', 'ERROR')):
+        elif (repo.status == 'COMPLETED') and (status['general'] not in ('RUNNING', 'PENDING', 'ERROR')):
             status['general'] = 'COMPLETED'
     return status
 
