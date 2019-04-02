@@ -9,6 +9,8 @@ tmp_projects_json/
 projects_json/
 migrations/
 tmp/
+.idea/
+.vscode/
 
 ### Django ###
 *.log

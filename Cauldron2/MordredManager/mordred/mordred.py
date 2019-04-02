@@ -38,7 +38,6 @@ def _create_projects_file(repo_gh, repo_git):
             os.mkdir(JSON_DIR_PATH)
         except OSError:
             logging.error("Creation of directory %s failed", JSON_DIR_PATH)
-    # TODO: Check url
     projects = dict()
     projects['Project'] = dict()
     projects['Project']['git'] = list()
@@ -72,7 +71,6 @@ def _get_raw(config):
             task.execute()
             logging.info("Loading raw data for %s finished!", backend)
         except Exception as e:
-            # TODO: More specific exception
             logging.warning("Error loading raw data from %s. Raising exception", backend)
             raise
 
@@ -87,7 +85,6 @@ def _get_enrich(config):
             task.execute()
             logging.info("Data for %s enriched!", backend)
         except Exception as e:
-            # TODO: More specific exception
             logging.warning("Error enriching data for %s. Raising exception", backend)
             raise
 
