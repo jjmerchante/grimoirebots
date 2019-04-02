@@ -13,7 +13,7 @@ from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
 # logging.basicConfig(level=logging.INFO)
 
-CONFIG_PATH = 'mordred/setup-default-local-full.cfg'
+CONFIG_PATH = 'mordred/setup-default.cfg'
 JSON_DIR_PATH = 'projects_json'
 BACKEND_SECTIONS = ['git', 'github']  # add git
 
