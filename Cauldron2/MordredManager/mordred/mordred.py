@@ -5,6 +5,8 @@ import os
 import logging
 import argparse
 
+from urllib.parse import urlparse
+
 from sirmordred.config import Config
 from sirmordred.task_collection import TaskRawDataCollection
 from sirmordred.task_enrich import TaskEnrich
@@ -13,17 +15,24 @@ from sirmordred.task_panels import TaskPanels, TaskPanelsMenu
 
 # logging.basicConfig(level=logging.INFO)
 
-CONFIG_PATH = 'mordred/setup-default.cfg'
+CONFIG_PATH = 'mordred/setup-default-local.cfg'
 JSON_DIR_PATH = 'projects_json'
-BACKEND_SECTIONS = ['git', 'github']  # add git
+BACKEND_SECTIONS = ['git', 'github']
 
 
 def run_mordred(repo_gh, repo_git, gh_token):
     projects_file = _create_projects_file(repo_gh, repo_git)
-    cfg = _create_config(projects_file, gh_token)
+    index_name = _repo_name(repo_gh)
+    cfg = _create_config(projects_file, gh_token, index_name)
     _get_raw(cfg)
     _get_enrich(cfg)
     # _get_panels(cfg)
+
+
+def _repo_name(gh_url):
+    o = urlparse(gh_url)
+    owner, repo = o.path.split('/')[1:]
+    return "{}_{}".format(owner, repo).lower()
 
 
 def _create_projects_file(repo_gh, repo_git):
@@ -54,10 +63,27 @@ def _create_projects_file(repo_gh, repo_git):
     return projects_file.name
 
 
-def _create_config(projects_file, gh_token):
+def _create_config(projects_file, gh_token, index_name):
     cfg = Config(CONFIG_PATH)
     cfg.set_param('github', 'api-token', gh_token)
     cfg.set_param('projects', 'projects_file', projects_file)
+    cfg.set_param('git', 'raw_index', "git_raw_{}".format(index_name))
+    cfg.set_param('git', 'enriched_index', "git_enrich_{}".format(index_name))
+    cfg.set_param('github', 'raw_index', "github_raw_{}".format(index_name))
+    cfg.set_param('github', 'enriched_index', "github_enrich_{}".format(index_name))
+    cfg.set_param('github:issue', 'raw_index', "github_issues_raw_{}".format(index_name))
+    cfg.set_param('github:issue', 'enriched_index', "github_issues_enriched_{}".format(index_name))
+    cfg.set_param('github:pull', 'raw_index', "github_pulls_raw_{}".format(index_name))
+    cfg.set_param('github:pull', 'enriched_index', "github_pulls_enriched_{}".format(index_name))
+    cfg.set_param('enrich_areas_of_code:git', 'in_index', "git_raw_{}".format(index_name))
+    cfg.set_param('enrich_areas_of_code:git', 'out_index', "git_aoc_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:git', 'in_index', "git_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:git', 'out_index', "git_onion_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:github', 'in_index_iss', "github_issues_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:github', 'in_index_prs', "github_pulls_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:github', 'out_index_iss', "github_issues_onion_enriched_{}".format(index_name))
+    cfg.set_param('enrich_onion:github', 'out_index_prs', "github_prs_onion_enriched_{}".format(index_name))
+
     return cfg
 
 
