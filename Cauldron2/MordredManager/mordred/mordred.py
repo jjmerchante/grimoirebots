@@ -4,6 +4,7 @@ import tempfile
 import os
 import logging
 import argparse
+from elasticsearch import Elasticsearch
 
 from urllib.parse import urlparse
 
@@ -26,7 +27,19 @@ def run_mordred(repo_gh, repo_git, gh_token):
     cfg = _create_config(projects_file, gh_token, index_name)
     _get_raw(cfg)
     _get_enrich(cfg)
+    _update_aliases(cfg)
     # _get_panels(cfg)
+
+
+def _update_aliases(cfg):
+    # TODO: Verify SSL Elasticsearch
+    conf = cfg.get_conf()
+    es = Elasticsearch([conf['es_enrichment']['url']], timeout=100, verify_certs=False, use_ssl=True)
+    es.indices.put_alias(index='git_aoc_enriched_*', name='git_aoc_enriched')
+    es.indices.put_alias(index='git_enrich_*', name='git_enrich')
+    es.indices.put_alias(index='git_raw_*', name='git_raw')
+    es.indices.put_alias(index='github_enrich_*', name='github_enrich')
+    es.indices.put_alias(index='github_raw_*', name='github_raw')
 
 
 def _repo_name(gh_url):
