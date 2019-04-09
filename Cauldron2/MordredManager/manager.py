@@ -11,16 +11,20 @@ logging.basicConfig(level=logging.INFO)
 class MordredManager:
     def __init__(self, db_config):
         self.conn = MySQLdb.connect(host=db_config['host'], user=db_config['user'], passwd=db_config['password'], db=db_config['name'], port=db_config['port'])
-        self.cursor = self.conn.cursor()
 
     def _db_update(self, query):
-        res = self.cursor.execute(query)
+        cursor = self.conn.cursor()
+        res = cursor.execute(query)
         self.conn.commit()
+        cursor.close()
         return res
 
     def _db_select(self, query):
-        self.cursor.execute(query)
-        row = self.cursor.fetchone()
+        cursor = self.conn.cursor()
+        cursor.execute(query)
+        row = cursor.fetchone()
+        self.conn.commit()
+        cursor.close()
         return row
 
     def run(self):
