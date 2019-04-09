@@ -18,6 +18,7 @@ from CauldronApp.githubsync import GitHubSync
 GH_ACCESS_OAUTH = 'https://github.com/login/oauth/access_token'
 GH_URI_IDENTITY = 'https://github.com/login/oauth/authorize'
 
+DASHBOARD_LOGS = '/dashboard_logs'
 
 def homepage(request):
     context = dict()
@@ -217,7 +218,7 @@ def dash_logs(request, dash_name):
     if len(repos) == 0:
         return JsonResponse({'exists': False})
     for repo in repos:
-        logfile = 'MordredManager/dashboards_logs/repository_{}.log'.format(repo.id)
+        logfile = '{}/repository_{}.log'.format(DASHBOARD_LOGS, repo.id)
         output += "<strong>{}</strong>\n".format(repo.url_gh)
         if not os.path.isfile(logfile):
             output += "{}\n".format(repo.status)
