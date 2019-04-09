@@ -1,6 +1,6 @@
 Django==2.1.7
 requests==2.21.0
-sirmordred==0.2.5
+sirmordred==0.2.12
 PyGithub==1.43.5
 elasticsearch>=6.0.0,<7.0.0
 mysqlclient
