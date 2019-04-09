@@ -1,14 +1,16 @@
-import sqlite3
 import time
 import logging
 import subprocess
+import MySQLdb
+
+import config
 
 logging.basicConfig(level=logging.INFO)
 
 
 class MordredManager:
-    def __init__(self, db):
-        self.conn = sqlite3.connect(db)
+    def __init__(self, db_config):
+        self.conn = MySQLdb.connect(host=db_config['host'], user=db_config['user'], passwd=db_config['password'], db=db_config['name'], port=db_config['port'])
         self.cursor = self.conn.cursor()
 
     def _db_update(self, query):
@@ -17,8 +19,8 @@ class MordredManager:
         return res
 
     def _db_select(self, query):
-        res = self.cursor.execute(query)
-        row = res.fetchone()
+        self.cursor.execute(query)
+        row = self.cursor.fetchone()
         return row
 
     def run(self):
@@ -44,6 +46,12 @@ class MordredManager:
                     "FROM CauldronApp_githubuser " \
                     "WHERE id = {};".format(id_user)
                 row = self._db_select(q)
+                if row is None:
+                    q = "UPDATE CauldronApp_repository " \
+                        "SET status = 'ERROR' " \
+                        "WHERE id='{}';".format(id_repo)
+                    self._db_update(q)
+                    continue
                 token = row[0]
 
                 q = "UPDATE CauldronApp_repository " \
@@ -73,5 +81,12 @@ class MordredManager:
 
 
 if __name__ == "__main__":
-    manager = MordredManager('../db.sqlite3')
+    db = {
+        'host': config.DB_HOST,
+        'user': config.DB_USER,
+        'password': config.DB_PASSWORD,
+        'name': config.DB_NAME,
+        'port': config.DB_PORT
+    }
+    manager = MordredManager(db)
     manager.run()

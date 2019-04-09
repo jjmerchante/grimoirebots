@@ -77,8 +77,15 @@ WSGI_APPLICATION = 'Cauldron2.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': secret.DB_NAME,
+        'USER': secret.DB_USER,
+        'PASSWORD': secret.DB_PASSWORD,
+        'HOST': secret.DB_HOST,
+        'PORT': secret.DB_PORT,
+        'OPTIONS': {
+            'sql_mode': 'traditional'
+        }
     }
 }
 

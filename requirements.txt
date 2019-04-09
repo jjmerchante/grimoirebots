@@ -3,3 +3,4 @@ requests==2.21.0
 sirmordred==0.2.5
 PyGithub==1.43.5
 elasticsearch>=6.0.0,<7.0.0
+mysqlclient
