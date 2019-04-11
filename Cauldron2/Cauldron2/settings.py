@@ -23,6 +23,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = secret.DJANGO_KEY
 
+# SECURITY WARNING: keep the secrect key for GitHub in production secret!
+GH_CLIENT_ID = secret.GH_CLIENT_ID
+GH_CLIENT_SECRET = secret.GH_CLIENT_SECRET
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 

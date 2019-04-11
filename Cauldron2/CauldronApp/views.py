@@ -10,7 +10,7 @@ import requests
 from urllib.parse import urlparse
 from github import Github
 
-from Cauldron2.settings_secret import GH_CLIENT_ID, GH_CLIENT_SECRET
+from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET
 from CauldronApp.models import GithubUser, Dashboard, Repository, Task, CompletedTask
 from CauldronApp.githubsync import GitHubSync
 
