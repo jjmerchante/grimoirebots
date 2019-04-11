@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from github import Github
 
 from Cauldron2.settings_secret import GH_CLIENT_ID, GH_CLIENT_SECRET
-from CauldronApp.models import GithubUser, Dashboard, Repository
+from CauldronApp.models import GithubUser, Dashboard, Repository, Task, CompletedTask
 from CauldronApp.githubsync import GitHubSync
 
 
@@ -109,6 +109,7 @@ def create_dashboard(request):
     org_name = request.POST.get('gh-org', None)
 
     if repo_url:
+        # TODO: owner/repository format
         if not valid_github_url(repo_url):
             return render(request, 'error.html', status=400,
                           context={'title': 'Invalid URL',
@@ -122,33 +123,39 @@ def create_dashboard(request):
         return HttpResponseRedirect('/dashboard/' + dash.name)
 
     elif org_name:
-        gh_sync = GitHubSync(request.user.githubuser.token)
-        git_list, github_list = gh_sync.get_repo(org_name, False)
+        # TODO: Check valid org_name
         dash, created = Dashboard.objects.get_or_create(name=org_name, defaults={'creator': request.user.githubuser})
-        if not created:
-            return HttpResponseRedirect('/dashboard/' + dash.name)
-        fill_dashboard(dash, git_list, github_list, request.user.githubuser)
+        if created:
+            gh_sync = GitHubSync(request.user.githubuser.token)
+            git_list, github_list = gh_sync.get_repo(org_name, False)
+            fill_dashboard(dash, git_list, github_list, request.user.githubuser)
         return HttpResponseRedirect('/dashboard/' + dash.name)
     else:
         return render(request, 'error.html', status=404,
-                      context={'title': 'URL/user not found',
+                      context={'title': 'URL/owner not found',
                                'description': "We need URL, user or organization for analyzing"})
 
 
 def fill_dashboard(dash, git_list, gh_list, githubuser):
+    """
+    Add a list of repositories to a dashboard
+    :param dash: Dashboard row from db
+    :param git_list: List of git repositories
+    :param gh_list: List of GitHub repositories
+    :param githubuser: GitHubUser row from db
+    :return: None
+    """
     assert len(git_list) == len(gh_list), 'Git and Github lists are not the same length for ' + dash.name
     for repo_git, repo_gh in zip(git_list, gh_list):
         repo_obj = Repository.objects.filter(url_git=repo_git).first()
         if not repo_obj:
-            repo_obj = Repository(
-                url_git=repo_git,
-                url_gh=repo_gh,
-                gh_token=githubuser,
-                status='PENDING')
+            # Create the repo and the task
+            repo_obj = Repository(url_git=repo_git, url_gh=repo_gh)
             repo_obj.save()
-            repo_obj.dashboards.add(dash)
-        else:
-            repo_obj.dashboards.add(dash)
+            task = Task(repository=repo_obj, gh_user=githubuser)
+            task.save()
+        # Add the repo to the dashboard
+        repo_obj.dashboards.add(dash)
 
 
 def get_dashboard_status(dash_name):
@@ -175,19 +182,21 @@ def get_dashboard_status(dash_name):
         'exists': True
     }
     for repo in repos:
-        status['repos'].append({'id': repo.id, 'status': repo.status})
-        if repo.status == 'RUNNING':
+        status_repo = get_repo_status(repo)
+
+        status['repos'].append({'id': repo.id, 'status': status_repo})
+        if status_repo == 'RUNNING':
             status['general'] = 'RUNNING'
-        elif repo.status == 'PENDING' and (status['general'] != 'RUNNING'):
+        elif status_repo == 'PENDING' and (status['general'] != 'RUNNING'):
             status['general'] = 'PENDING'
-        elif (repo.status == 'ERROR') and (status['general'] not in ('RUNNING', 'PENDING')):
+        elif (status_repo == 'ERROR') and (status['general'] not in ('RUNNING', 'PENDING')):
             status['general'] = 'ERROR'
-        elif (repo.status == 'COMPLETED') and (status['general'] not in ('RUNNING', 'PENDING', 'ERROR')):
+        elif (status_repo == 'COMPLETED') and (status['general'] not in ('RUNNING', 'PENDING', 'ERROR')):
             status['general'] = 'COMPLETED'
     return status
 
 
-@ensure_csrf_cookie
+@ensure_csrf_cookie  # For Ajax, just in case
 def show_dashboard(request, dash_name):
     if request.method != 'GET':
         return render(request, 'error.html', status=405,
@@ -218,13 +227,14 @@ def dash_logs(request, dash_name):
     if len(repos) == 0:
         return JsonResponse({'exists': False})
     for repo in repos:
+        repo_status = get_repo_status(repo)
         logfile = '{}/repository_{}.log'.format(DASHBOARD_LOGS, repo.id)
         output += "<strong>{}</strong>\n".format(repo.url_gh)
         if not os.path.isfile(logfile):
-            output += "{}\n".format(repo.status)
+            output += "{}\n".format(repo_status)
             continue
         output += open(logfile, 'r').read() + '\n'
-        if repo.status in ('PENDING', 'RUNNING'):
+        if repo_status in ('PENDING', 'RUNNING'):
             more = True
 
     response = {
@@ -244,7 +254,7 @@ def repo_status(request, repo_id):
     repo = Repository.objects.filter(id=repo_id).first()
     if not repo:
         return JsonResponse({'status': 'UNKNOWN'})
-    return JsonResponse({'status': repo.status})
+    return JsonResponse({'status': get_repo_status(repo)})
 
 
 def dash_status(request, dash_name):
@@ -268,3 +278,19 @@ def valid_github_url(url):
     return (o.scheme == 'https' and
             o.netloc == 'github.com' and
             len(o.path.split('/')) == 3)
+
+
+def get_repo_status(repo):
+    """
+    Check if there is a task associated or it has been completed
+    :param repo: Repository object from the database
+    :return: status (PENDING, RUNNING, COMPLETED)
+    """
+    if hasattr(repo, 'task'):
+        # PENDING OR RUNNING
+        if repo.task.worker_id:
+            return 'RUNNING'
+        else:
+            return 'PENDING'
+    else:
+        return 'COMPLETED'

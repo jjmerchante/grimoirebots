@@ -1,19 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-from django.core.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
 
-
-def validate_status(status):
-    if status not in ('PENDING', 'RUNNING', 'COMPLETED', 'ERROR'):
-        raise ValidationError(
-            _('%(status)s is not a valid status'),
-            params={'status': status},
-        )
-
-
-# Create your models here.
 class GithubUser(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, unique=True)
     token = models.CharField(max_length=100)
@@ -28,12 +16,31 @@ class Dashboard(models.Model):
 
 
 class Repository(models.Model):
-    """
-    status: PENDING, RUNNING, COMPLETED, ERROR
-    """
     url_gh = models.URLField()
     url_git = models.URLField()
     dashboards = models.ManyToManyField(Dashboard)
-    last_modified = models.DateTimeField(auto_now=True)
-    gh_token = models.ForeignKey(GithubUser, on_delete=models.CASCADE)
-    status = models.CharField(max_length=15, validators=[validate_status])
+
+
+class Task(models.Model):
+    """
+    When a worker takes one:
+    - Update the worker ID
+    - Update the started date
+    When a worker finishes one:
+    - Create a completedTask
+    - Delete this task
+    """
+    repository = models.OneToOneField(Repository, on_delete=models.CASCADE)
+    gh_user = models.ForeignKey(GithubUser, on_delete=models.CASCADE)
+    worker_id = models.CharField(max_length=255, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    started = models.DateTimeField(null=True)
+
+
+class CompletedTask(models.Model):
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE)
+    gh_user = models.ForeignKey(GithubUser, on_delete=models.SET_NULL, blank=True, null=True)
+    created = models.DateTimeField()
+    started = models.DateTimeField()
+    completed = models.DateTimeField()
+    status = models.CharField(max_length=255)
