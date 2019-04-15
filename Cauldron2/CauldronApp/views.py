@@ -24,6 +24,7 @@ def homepage(request):
     context = dict()
     if request.user.is_authenticated:
         context['auth_user'] = request.user
+        context['photo_user'] = request.user.githubuser.photo
 
     dashboards = Dashboard.objects.filter()
     context_dbs = []
@@ -83,7 +84,7 @@ def github_login_callback(request):
         previous_token.token = token
         previous_token.save()
     else:
-        token_entry = GithubUser(user=dj_user, token=token)
+        token_entry = GithubUser(user=dj_user, token=token, photo=gh_user.avatar_url)
         token_entry.save()
 
     login(request, dj_user)
@@ -205,8 +206,10 @@ def show_dashboard(request, dash_name):
     dash = Dashboard.objects.filter(name=dash_name).first()
     # CREATE RESPONSE
     context = dict()
+    context['gh_uri_identity'] = GH_URI_IDENTITY
     if request.user.is_authenticated:
         context['auth_user'] = request.user
+        context['photo_user'] = request.user.githubuser.photo
 
     if dash:
         context['dashboard'] = dash
@@ -228,14 +231,18 @@ def dash_logs(request, dash_name):
         return JsonResponse({'exists': False})
     for repo in repos:
         repo_status = get_repo_status(repo)
-        logfile = '{}/repository_{}.log'.format(DASHBOARD_LOGS, repo.id)
-        output += "<strong>{}</strong>\n".format(repo.url_gh)
-        if not os.path.isfile(logfile):
-            output += "{}\n".format(repo_status)
-            continue
-        output += open(logfile, 'r').read() + '\n'
         if repo_status in ('PENDING', 'RUNNING'):
             more = True
+        logfile = '{}/repository_{}.log'.format(DASHBOARD_LOGS, repo.id)
+        if not os.path.isfile(logfile):
+            if repo_status != "PENDING":
+                output += "<strong>{}</strong>\n".format(repo.url_gh)
+                output += "Logs not found\n"
+            continue
+        output += "<strong>{}</strong>\n".format(repo.url_gh)
+        output += open(logfile, 'r').read() + '\n'
+    if not output.strip():
+        output = "No logs not available for now. We need at least 1 repository analyzing"
 
     response = {
         'exists': True,
@@ -274,7 +281,6 @@ def parse_gh_url(url):
 
 def valid_github_url(url):
     o = urlparse(url)
-    print(o)
     return (o.scheme == 'https' and
             o.netloc == 'github.com' and
             len(o.path.split('/')) == 3)

@@ -7,108 +7,130 @@
 
 {% block navbar %}
 <nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
-  <a class="navbar-brand" href="/">
-    Cauldron v2
-  </a>
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      Cauldron v2
+    </a>
 
-  {% if auth_user %}
-  <div class="dropleft">
+    {% if auth_user %}
+    <div class="dropdown">
       <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          {{ auth_user.username }}
+        <img src="{{ photo_user }}" class="rounded-circle avatar">
+        <span>{{ auth_user.username }}</span>
       </a>
+
       <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
         <a class="dropdown-item" href="/logout">Log out</a>
         <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
+      </div>
     </div>
+    {% else %}
+      <form action="{{ gh_uri_identity }}" method="GET">
+        <input type="hidden" name="client_id" value="{{ gh_client_id }}">
+        <button type="submit" class="btn btn-secondary"  aria-haspopup="true" aria-expanded="false">GitHub Login</button>
+      </form>
+    {% endif %}
   </div>
-  {% endif %}
 </nav>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  {% if dashboard %}
-    <!-- HIDDEN. To know the status of the dashboard on load -->
-    <span hidden="" id="initial-status">{{ dashboard_status }}</span>
-    <!-- Upper part -->
-    <div class="d-flex align-items-center">
-      <h1 class="mr-auto">Control Panel for <strong>{{dashboard.name}}</strong></h1>
-      {% if dashboard_status == 'PENDING'%}
-      <button class="btn btn-secondary" type="button" disabled>
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        Pending...
-      </button>
-      {% elif dashboard_status == 'RUNNING' %}
-      <button class="btn btn-primary" type="button" disabled>
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        Running...
-      </button>
-      {% elif dashboard_status == 'COMPLETED' %}
-      <button class="btn btn-success" type="button" disabled>
-        <i class="fas fa-check"></i>
-        Completed
-      </button>
-      {% elif dashboard_status == 'ERROR' %}
-      <button class="btn btn-danger" type="button" disabled>
-        <i class="fas fa-times"></i>
-        Error
-      </button>
+<div class="fluid-container">
+  <div class="row">
+<!--     <div class="col-md-3 aside">
+      <div class="showme">
+        <h3 class="repos-header">Repositories</h3>
+        
+      </div>
+      <div class="repo-panel">Hi</div>
+    </div>
+ -->    
+    <div class="col-md-12">
+      <div class="container">
+      {% if dashboard %}
+        <!-- HIDDEN. To know the status of the dashboard on load -->
+        <span hidden="" id="initial-status">{{ dashboard_status }}</span>
+        <!-- Upper part -->
+        <div class="d-flex align-items-center">
+          <h1 class="mr-auto">Control Panel for <strong>{{dashboard.name}}</strong></h1>
+          {% if dashboard_status == 'PENDING'%}
+          <button class="btn btn-secondary" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Pending...
+          </button>
+          {% elif dashboard_status == 'RUNNING' %}
+          <button class="btn btn-primary" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Running...
+          </button>
+          {% elif dashboard_status == 'COMPLETED' %}
+          <button class="btn btn-success" type="button" disabled>
+            <i class="fas fa-check"></i>
+            Completed
+          </button>
+          {% elif dashboard_status == 'ERROR' %}
+          <button class="btn btn-danger" type="button" disabled>
+            <i class="fas fa-times"></i>
+            Error
+          </button>
+          {% endif %}
+        </div>
+        <!-- card -->
+        <div class="card shadow-sm mb-3">
+
+          <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info" aria-selected="true">Information</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="logs-tab" data-toggle="tab" href="#logs" role="tab" aria-controls="logs" aria-selected="false">Job logs</a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="tab-content" id="myTabContent">
+            <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+<!--               <div class="row">
+                <label class="col-sm-2"> <strong>Creator</strong></label>
+                <label class="col-sm-10">{{dashboard.creator.user}}</label>
+              </div>
+              <div class="row">
+                <label class="col-sm-2"> <strong>Last updated</strong></label>
+                <label class="col-sm-10">{{dashboard.last_modified}}</label>
+              </div> -->
+              <br>
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Repository</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for repo in repositories %}
+                  <tr class="repo-entry">
+                    <th scope="row">{{ forloop.counter }}</th>
+                    <td>{{ repo.url_gh }}</td>
+                    <td id="repo-{{repo.id}}-status">{{ repo.status }}</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="tab-pane card-body fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+              <pre class="logger"><code class="log-content"></code></pre>
+            </div>
+          </div>
+
+        </div>
+      {% else %}
+        <h1>Dashboard not found</h1>
       {% endif %}
     </div>
-    <!-- card -->
-    <div class="card shadow-sm mb-3">
-
-      <div class="card-header">
-        <ul class="nav nav-tabs card-header-tabs" role="tablist">
-          <li class="nav-item">
-            <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info" aria-selected="true">Information</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" id="logs-tab" data-toggle="tab" href="#logs" role="tab" aria-controls="logs" aria-selected="false">Job logs</a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="tab-content" id="myTabContent">
-        <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
-          <!--<div class="row">
-            <label class="col-sm-2"> <strong>Creator</strong></label>
-            <label class="col-sm-10">{{dashboard.creator.user}}</label>
-          </div>-->
-<!--          <div class="row">-->
-<!--            <label class="col-sm-2"> <strong>Last updated</strong></label>-->
-<!--            <label class="col-sm-10">{{dashboard.last_modified}}</label>-->
-<!--          </div>-->
-          <br>
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Repository</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-            {% for repo in repositories %}
-              <tr class="repo-entry">
-                <th scope="row">{{ forloop.counter }}</th>
-                <td>{{ repo.url_gh }}</td>
-                <td id="repo-{{repo.id}}-status">{{ repo.status }}</td>
-
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <div class="tab-pane card-body fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
-          <pre class="logger"><code class="log-content"></code></pre>
-        </div>
-      </div>
-
     </div>
-  {% else %}
-    <h1>Dashboard not found</h1>
-  {% endif %}
+  </div>
 </div>
 {% endblock %}
 

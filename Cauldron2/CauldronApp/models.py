@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 class GithubUser(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, unique=True)
     token = models.CharField(max_length=100)
+    photo = models.URLField()
 
 
 class Dashboard(models.Model):
