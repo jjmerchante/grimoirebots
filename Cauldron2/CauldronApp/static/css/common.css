@@ -1,0 +1,12 @@
+.avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+body {
+    background-color: #f3f5fa;
+}
+
+.nav-link {
+  outline: none;
+}
