@@ -1,30 +1,34 @@
-.logger {
-    padding: 1.5rem;
-    border: 1px solid rgba(0,0,0,.125);
-    border-radius: .25rem;
-    overflow: scroll;
-    background-color: #F5F2F0;
-    height: 70vh;
-}
-
-.logger {
-    background-color: black;
-    color: white;
-}
-
-/* 
-.aside {
-    border-right: solid;
-    border-color: rgba(220,220,220,1);
-    border-right-width: 2px;
-    padding-right: 0;
-}
-
-
-
-.showme {
-    background-color: rgba(0,0,0,.125);
+.header-dashboard {
+    border-top: 1px solid #e5e5e5;
+    border-bottom: 1px solid #e5e5e5;
     padding: 10px;
+}
+
+.header-dashboard h3{
+    font-weight: 600;
+}
+
+.info-panel {
+    background-color: #f7f7f7;
+    border: 1px solid #e5e5e5;
+    border-radius: 3px;
+    padding: 15px;
+}
+
+i {
+    padding: 7px;
+}
+
+#logger-body {
+    background-color: #555555;
+    padding: 15px;
+    overflow: scroll;
+    width: 100%;
+    margin: 10px;
+}
+
+.log-content {
+    color: white;
 }
 
 .repo-panel {
@@ -34,4 +38,4 @@
     border: solid 1px;
     border-color: rgba(220,220,220,1);
 }
- */
+

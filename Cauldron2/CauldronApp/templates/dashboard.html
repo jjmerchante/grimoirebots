@@ -35,107 +35,108 @@
 {% endblock %}
 
 {% block content %}
-<div class="fluid-container">
-  <div class="row">
-<!--     <div class="col-md-3 aside">
-      <div class="showme">
-        <h3 class="repos-header">Repositories</h3>
-        
-      </div>
-      <div class="repo-panel">Hi</div>
-    </div>
- -->    
-    <div class="col-md-12">
-      <div class="container">
+<div class="container">
+  <div class="header-dashboard">
+    {% if dashboard %}
+      <h3>Control panel for '{{dashboard.name}}'</strong></h3>
+    {% else %}
+      <h3>Dashboard not found</h3>
+    {% endif %}
+  </div>
+  <div class="body-dashboard pt-2">
       {% if dashboard %}
-        <!-- HIDDEN. To know the status of the dashboard on load -->
-        <span hidden="" id="initial-status">{{ dashboard_status }}</span>
-        <!-- Upper part -->
-        <div class="d-flex align-items-center">
-          <h1 class="mr-auto">Control Panel for <strong>{{dashboard.name}}</strong></h1>
-          {% if dashboard_status == 'PENDING'%}
-          <button class="btn btn-secondary" type="button" disabled>
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            Pending...
-          </button>
-          {% elif dashboard_status == 'RUNNING' %}
-          <button class="btn btn-primary" type="button" disabled>
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            Running...
-          </button>
-          {% elif dashboard_status == 'COMPLETED' %}
-          <button class="btn btn-success" type="button" disabled>
-            <i class="fas fa-check"></i>
-            Completed
-          </button>
-          {% elif dashboard_status == 'ERROR' %}
-          <button class="btn btn-danger" type="button" disabled>
-            <i class="fas fa-times"></i>
-            Error
-          </button>
-          {% endif %}
-        </div>
-        <!-- card -->
-        <div class="card shadow-sm mb-3">
-
-          <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" role="tablist">
-              <li class="nav-item">
-                <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info" aria-selected="true">Information</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" id="logs-tab" data-toggle="tab" href="#logs" role="tab" aria-controls="logs" aria-selected="false">Job logs</a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="tab-content" id="myTabContent">
-            <div class="tab-pane card-body fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
-<!--               <div class="row">
-                <label class="col-sm-2"> <strong>Creator</strong></label>
-                <label class="col-sm-10">{{dashboard.creator.user}}</label>
+      <!-- HIDDEN. To know the status of the dashboard on load -->
+      <span hidden="" id="initial-status">{{ dashboard_status }}</span>
+      <div class="info-panel">
+          <span><i class="fas fa-tasks text-primary"></i>  Repositories for this dashboard: {{repositories.count}}</span>
+        <hr>
+        <span>
+          <i class="fas fa-spinner text-success"></i>
+            Status:  
+            <span id="general-status">
+              <div class="spinner-border spinner-border-sm" role="status">
+                <span class="sr-only">Loading...</span>
               </div>
-              <div class="row">
-                <label class="col-sm-2"> <strong>Last updated</strong></label>
-                <label class="col-sm-10">{{dashboard.last_modified}}</label>
-              </div> -->
-              <br>
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Repository</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {% for repo in repositories %}
-                  <tr class="repo-entry">
-                    <th scope="row">{{ forloop.counter }}</th>
-                    <td>{{ repo.url_gh }}</td>
-                    <td id="repo-{{repo.id}}-status">{{ repo.status }}</td>
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            <div class="tab-pane card-body fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
-              <pre class="logger"><code class="log-content"></code></pre>
-            </div>
-          </div>
-
-        </div>
+            </span>
+          </span>
+        <!--<hr>
+        <a href=""> <span><i class="fas fa-chart-line text-warning"></i>  Dashboard</span></a>
+        -->
+      </div>
+      <div>
+        <br>
+        <table class="table table-hover repos-table">
+          <thead>
+            <tr>
+              <th scope="col" class="text-muted">Status</th>
+              <th scope="col">Repository</th>
+              <th scope="col">Creation</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Logs</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for repo in repositories %}
+            <tr class="repo-entry" id="repo-{{repo.id}}">
+              <td class="repo-status">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="sr-only">Loading...</span>
+                </div>
+              </td>
+              <td class="repo-name">{{ repo.url_gh }}</td>
+              <td>
+                <i class="fas fa-calendar-alt text-muted"></i> 
+                <span class="repo-creation">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                      <span class="sr-only">Loading...</span>
+                    </div>
+                </span>
+              </td>
+              <td>
+                <i class="fas fa-stopwatch text-muted"></i>
+                <span class="repo-duration">
+                  <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="sr-only">Loading...</span>
+                  </div>
+                </span>
+              </td>
+              <td>
+                <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#logModal" data-repo="{{repo.id}}">Show logs</button>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% else %}
-        <h1>Dashboard not found</h1>
+
       {% endif %}
-    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="logModal" tabindex="-1" role="dialog" aria-labelledby="logModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="logModalLabel">Repository logs</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="logger-body">
+          <pre class="logger"><code class="log-content">Loading...</code></pre>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block javascript %}
-
+<script src='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.5/jquery-ui.min.js'>
+</script><script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
 <script src="{% static 'js/dashboard.js' %}" charset="utf-8"></script>
 
 {% endblock %}

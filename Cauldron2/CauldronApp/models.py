@@ -36,12 +36,15 @@ class Task(models.Model):
     worker_id = models.CharField(max_length=255, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     started = models.DateTimeField(null=True)
+    log_file = models.CharField(max_length=255, blank=True)
 
 
 class CompletedTask(models.Model):
+    task_id = models.IntegerField()
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE)
     gh_user = models.ForeignKey(GithubUser, on_delete=models.SET_NULL, blank=True, null=True)
     created = models.DateTimeField()
     started = models.DateTimeField()
     completed = models.DateTimeField()
     status = models.CharField(max_length=255)
+    log_file = models.CharField(max_length=255, blank=True)

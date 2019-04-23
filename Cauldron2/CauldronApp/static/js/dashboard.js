@@ -1,3 +1,5 @@
+var LogsInterval;
+
 $(document).ready(function(){
     // Configure ajax for using the CSRF token
     var csrftoken = getCookie('csrftoken');
@@ -9,49 +11,117 @@ $(document).ready(function(){
         }
     });
     var dash_id = window.location.pathname.split('/')[2];
-    getLogs(dash_id);
-    getStatus(dash_id);
+    getInfo(dash_id);
+    $('#logModal').on('show.bs.modal', onShowLogsModal);
+    $('#logModal').on('hidden.bs.modal', OnHideLogsModal);
 });
 
 
-function getLogs(dash_id) {
-    $.getJSON('/dashboard-logs/' + dash_id, function (data) {
-        if (data && data.exists) {
-            $('.log-content').html('');
-            $('.log-content').html(data.content);
-            if (data.more) {
-                setTimeout(getLogs, 2000, dash_id);
+function onShowLogsModal(event) {
+    var button = $(event.relatedTarget);
+    var id_repo = button.data('repo');
+    if (LogsInterval) {
+        clearInterval(LogsInterval);
+        LogsInterval = null;
+    }
+    LogsInterval = setInterval(updateLogs, 1000, id_repo);
+}
+
+function OnHideLogsModal(event) {
+    if(LogsInterval){
+        clearInterval(LogsInterval);
+        LogsInterval = null;
+    }
+    $('#logModal .log-content ').html('Loading...');
+}
+
+function updateLogs(id_repo){
+    $.getJSON('/repo-logs/' + id_repo, function (data) {
+        if (!data){
+            $('#logModal .log-content').html('Task not found or an error occurred, try to reload the page.');
+            if (LogsInterval){
+                clearInterval(LogsInterval);
+                LogsInterval = null;
+            } 
+            return // NOTHING MORE TO DO
+        }
+        if (data.content) {
+            $('#logModal .log-content ').html('');
+            $('#logModal .log-content ').html(data.content);
+        }
+        if (!data.more) {
+            if (LogsInterval){
+                clearInterval(LogsInterval);
+                LogsInterval = null;
             }
-        } else {
-            $('.log-content').html('Task not found or an error occurred, try to reload the page.');
         }
     });
 }
 
+function getInfo(dash_id) {
+    $.getJSON('/dashboard-info/' + dash_id, function(data) {
+        if (!data || !data.exists){
+            return
+        }
+        data.repos.forEach(function(repo){
+            setIconStatus('#repo-' + repo.id + ' .repo-status', repo.status);
+            $('#repo-' + repo.id + " .repo-creation").html(moment(repo.created).fromNow());
+            var duration = get_duration(repo);
+            $('#repo-' + repo.id + " .repo-duration").html(duration);
 
-function getStatus(dash_id) {
-    // If the status is PENDING or RUNNING check the status every 2 seconds and reload when the status changes
-    // Else: Nothing
-    var initial_status = $('#initial-status').html();
-
-    $.getJSON('/dashboard-status/' + dash_id, function (data) {
-        if (!data || !data.status.exists) {
-            console.log('Dashboard not found /dashboard/' + dash_id);
-        } else {
-            for (var i = 0; i < data.status.repos.length; i++){
-                var repo = data.status.repos[i];
-                if ($('#repo-' + repo.id + "-status").html() != repo.status){
-                    $('#repo-' + repo.id + "-status").html(repo.status)
-                }
-            }
-            if (data.status.general != 'PENDING' && data.status.general != initial_status) {
-                location.reload()
-            }
-            if (data.status.general == 'PENDING' || data.status.general == 'RUNNING') {
-                setTimeout(getStatus, 3000, dash_id);
-            }
+        });
+        $('#general-status').html(data.general);
+        if (data.general == 'PENDING' || data.general == 'RUNNING') {
+            setTimeout(getInfo, 5000, dash_id);
         }
     });
+    
+}
+
+
+function setIconStatus(jq_selector, status) {
+    /**
+     * Status could be UNKNOWN, RUNNING, PENDING, COMPLETED OR ERROR
+     */
+    var icon;
+    switch (status) {
+        case 'COMPLETED':
+            icon = '<i class="fas fa-check text-success"></i>';
+            break;
+        case 'PENDING':
+            icon = '<div class="spinner-grow spinner-grow-sm text-primary" role="status"><span class="sr-only">...</span></div> Not started...';
+            break;
+        case 'RUNNING':
+            icon = '<div class="spinner-border spinner-border-sm text-secondary" role="status"><span class="sr-only">...</span></div> Running...';
+            break;
+        case 'ERROR':
+            icon = '<i class="fas fa-exclamation text-warning"></i> Error.';
+            break;
+        case 'UNKNOWN':
+            icon = '<i class="fas fa-question text-warning"></i>';
+            break;
+        default:
+            break;
+    }
+    $(jq_selector).html(icon);
+}
+
+
+function get_duration(repo) {
+    var output = "";
+    if (repo.started){
+        var a = moment(repo.started);
+        var b = "";
+        if (repo.completed){
+            b = moment(repo.completed);
+        } else {
+            b = moment();
+        }
+        output = moment.utc(b.diff(a)).format("HH:mm:ss")
+    } else {
+        output = "Not started";
+    }
+    return output
 }
 
 

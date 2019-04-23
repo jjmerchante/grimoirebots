@@ -22,9 +22,10 @@ urlpatterns = [
     path('logout', views.github_logout),
     path('create-dashboard', views.create_dashboard),
     path('dashboard/<slug:dash_name>', views.show_dashboard),
-    path('dashboard-logs/<slug:dash_name>', views.dash_logs),
-    # path('repo-status/<int:id_repo>', views.repo_status),
     path('dashboard-status/<slug:dash_name>', views.dash_status),
+    path('dashboard-info/<slug:dash_name>', views.dash_info),
+    # path('task-logs/<int:task_id>', views.task_logs),
+    path('repo-logs/<int:repo_id>', views.repo_logs),
     path('', views.homepage),
     # path('admin/', admin.site.urls),
 ]

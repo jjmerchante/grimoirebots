@@ -184,17 +184,79 @@ def get_dashboard_status(dash_name):
     }
     for repo in repos:
         status_repo = get_repo_status(repo)
-
         status['repos'].append({'id': repo.id, 'status': status_repo})
-        if status_repo == 'RUNNING':
-            status['general'] = 'RUNNING'
-        elif status_repo == 'PENDING' and (status['general'] != 'RUNNING'):
-            status['general'] = 'PENDING'
-        elif (status_repo == 'ERROR') and (status['general'] not in ('RUNNING', 'PENDING')):
-            status['general'] = 'ERROR'
-        elif (status_repo == 'COMPLETED') and (status['general'] not in ('RUNNING', 'PENDING', 'ERROR')):
-            status['general'] = 'COMPLETED'
+
+    status['general'] = general_stat_dash(repos)
+
     return status
+
+
+def general_stat_dash(repos):
+    """
+    General status from repos rows
+    :param repos: list of repos from database
+    :return:
+    """
+    general = 'UNKNOWN'
+    for repo in repos:
+        status_repo = get_repo_status(repo)
+
+        if status_repo == 'RUNNING':
+            general = 'RUNNING'
+        elif status_repo == 'PENDING' and (general != 'RUNNING'):
+            general = 'PENDING'
+        elif (status_repo == 'ERROR') and (general not in ('RUNNING', 'PENDING')):
+            general = 'ERROR'
+        elif (status_repo == 'COMPLETED') and (general not in ('RUNNING', 'PENDING', 'ERROR')):
+            general = 'COMPLETED'
+    return general
+
+
+def get_dashboard_info(dash_name):
+    """
+    Get information about the repositories that are analyzed / being analyzed
+    :param dash_name: Name of the dashboard
+    :return:
+    """
+    info = {
+        'repos': list(),
+        'exists': True
+    }
+    repos = Repository.objects.filter(dashboards__name=dash_name)
+    info['general'] = general_stat_dash(repos)
+    if len(repos) == 0:
+        info['exists'] = False
+        return info
+
+    for repo in repos:
+        item = dict()
+        item['id'] = repo.id
+        item['url'] = repo.url_gh
+        item['status'] = get_repo_status(repo)
+
+        task = Task.objects.filter(repository=repo).first()
+        if task:
+            item['created'] = task.created
+            item['started'] = task.started
+            item['completed'] = None
+            info['repos'].append(item)
+            continue
+
+        compl_task = CompletedTask.objects.filter(repository=repo).order_by('-completed').first()
+        if compl_task:
+            item['created'] = compl_task.created
+            item['started'] = compl_task.started
+            item['completed'] = compl_task.completed
+            info['repos'].append(item)
+            continue
+
+        # If we are here something wrong is happening. We leave everything as None
+        # just in case there is a race condition while creating the task
+        item['created'] = None
+        item['started'] = None
+        item['completed'] = None
+        info['repos'].append(item)
+    return info
 
 
 @ensure_csrf_cookie  # For Ajax, just in case
@@ -219,40 +281,6 @@ def show_dashboard(request, dash_name):
     return render(request, 'dashboard.html', context=context)
 
 
-def dash_logs(request, dash_name):
-    output = ""
-    more = False
-    if request.method != 'GET':
-        return render(request, 'error.html', status=405,
-                      context={'title': 'Method Not Allowed',
-                               'description': "Only GET methods allowed"})
-    repos = Repository.objects.filter(dashboards__name=dash_name)
-    if len(repos) == 0:
-        return JsonResponse({'exists': False})
-    for repo in repos:
-        repo_status = get_repo_status(repo)
-        if repo_status in ('PENDING', 'RUNNING'):
-            more = True
-        logfile = '{}/repository_{}.log'.format(DASHBOARD_LOGS, repo.id)
-        if not os.path.isfile(logfile):
-            if repo_status != "PENDING":
-                output += "<strong>{}</strong>\n".format(repo.url_gh)
-                output += "Logs not found\n"
-            continue
-        output += "<strong>{}</strong>\n".format(repo.url_gh)
-        output += open(logfile, 'r').read() + '\n'
-    if not output.strip():
-        output = "No logs not available for now. We need at least 1 repository analyzing"
-
-    response = {
-        'exists': True,
-        'content': output,
-        'more': more
-    }
-
-    return JsonResponse(response)
-
-
 def repo_status(request, repo_id):
     if request.method != 'GET':
         return render(request, 'error.html', status=405,
@@ -267,6 +295,76 @@ def repo_status(request, repo_id):
 def dash_status(request, dash_name):
     status = get_dashboard_status(dash_name)
     return JsonResponse({'status': status})
+
+
+def dash_info(request, dash_name):
+    info = get_dashboard_info(dash_name)
+    return JsonResponse(info)
+
+
+def task_logs(request, task_id):
+    more = False
+    if request.method != 'GET':
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Method Not Allowed',
+                               'description': "Only GET methods allowed"})
+    task = Task.objects.filter(id=task_id).first()
+    if not task:
+        # Maybe it has finished, check completed tasks
+        task = CompletedTask.objects.filter(task_id=task_id).first()
+        if not task:
+            return JsonResponse({'exists': False})
+    else:
+        more = True
+
+    # Here we have a task
+
+    if os.path.isfile(task.log_file):
+        output = open(task.log_file, 'r').read() + '\n'
+    else:
+        output = "Logs not found\n"
+
+    response = {
+        'exists': True,
+        'content': output,
+        'more': more
+    }
+
+    return JsonResponse(response)
+
+
+def repo_logs(request, repo_id):
+    """
+    Get the latest logs for a repository
+    :param request:
+    :param repo_id: Repository Identifier
+    :return: Dict{exists[True or False], content[string or None], more[True or False]}
+    """
+    repo = Repository.objects.filter(id=repo_id).first()
+    if not repo:
+        return JsonResponse({'content': "Repository not found. Contact us if is an error.", 'more': False})
+
+    task = Task.objects.filter(repository=repo).first()
+    if task:
+        more = True
+        if not task.log_file or not os.path.isfile(task.log_file):
+            output = "Logs not found. Has the task started?"
+        else:
+            output = open(task.log_file, 'r').read() + '\n'
+
+    else:
+        more = False
+        task = CompletedTask.objects.filter(repository=repo).order_by('completed').last()
+        if not task or not task.log_file or not os.path.isfile(task.log_file):
+            output = "Logs not found. Maybe it has been deleted. Sorry for the inconveniences"
+        else:
+            output = open(task.log_file, 'r').read() + '\n'
+
+    response = {
+        'content': output,
+        'more': more
+    }
+    return JsonResponse(response)
 
 
 def parse_gh_url(url):
