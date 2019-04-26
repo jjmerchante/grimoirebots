@@ -27,6 +27,10 @@ SECRET_KEY = secret.DJANGO_KEY
 GH_CLIENT_ID = secret.GH_CLIENT_ID
 GH_CLIENT_SECRET = secret.GH_CLIENT_SECRET
 
+# SECURITY WARNING: keep the secrect key for GitLab in production secret!
+GL_CLIENT_ID = secret.GL_CLIENT_ID
+GL_CLIENT_SECRET = secret.GL_CLIENT_SECRET
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 

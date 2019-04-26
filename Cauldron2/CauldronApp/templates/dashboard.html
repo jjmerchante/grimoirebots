@@ -12,11 +12,11 @@
       Cauldron v2
     </a>
 
-    {% if auth_user %}
+    {% if auth_user_username %}
     <div class="dropdown">
       <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         <img src="{{ photo_user }}" class="rounded-circle avatar">
-        <span>{{ auth_user.username }}</span>
+        <span>{{ auth_user_username }}</span>
       </a>
 
       <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
@@ -69,6 +69,7 @@
           <thead>
             <tr>
               <th scope="col" class="text-muted">Status</th>
+              <th scope="col">Backend</th>
               <th scope="col">Repository</th>
               <th scope="col">Creation</th>
               <th scope="col">Duration</th>
@@ -83,7 +84,8 @@
                   <span class="sr-only">Loading...</span>
                 </div>
               </td>
-              <td class="repo-name">{{ repo.url_gh }}</td>
+              <td class="repo-backend">{{ repo.backend }}</td>
+              <td class="repo-name">{{ repo.url }}</td>
               <td>
                 <i class="fas fa-calendar-alt text-muted"></i> 
                 <span class="repo-creation">
@@ -101,7 +103,7 @@
                 </span>
               </td>
               <td>
-                <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#logModal" data-repo="{{repo.id}}">Show logs</button>
+                <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#logModal" data-repo="{{repo.id}}">Logs</button>
               </td>
             </tr>
           {% endfor %}

@@ -9,6 +9,10 @@ DJANGO_KEY = ''
 GH_CLIENT_ID = ''
 GH_CLIENT_SECRET = ''
 
+# Create a GitLab Oauth Application and get the keys
+GH_CLIENT_ID = ''
+GH_CLIENT_SECRET = ''
+
 # Database configuration
 DB_NAME = 'db_cauldron'
 DB_USER = 'grimoirelab'

@@ -4,3 +4,5 @@ requests==2.21.0
 PyGithub==1.43.5
 elasticsearch>=6.0.0,<7.0.0
 mysqlclient
+python-gitlab==1.8.0
+python-slugify==3.0.2

@@ -10,3 +10,47 @@
 .nav-link {
   outline: none;
 }
+
+.btn-block {
+  width: 100%;
+  margin: 10px 0;
+  text-align: left;
+  line-height: 25px;
+}
+
+.btn-block i {
+  float: left;
+  margin: 4px 15px 0 5px;
+  min-width: 15px;
+}
+
+.btn-github {
+  color: #fff;
+  background-color: #555555;
+  border-color: #555555;
+}
+
+.btn-github:hover {
+  background-color: #333333;
+  color: #fff;
+}
+
+.btn-gitlab {
+  color: #fff;
+  background-color: #fc6d26;
+  border-color: #fc6d26;
+}
+
+.btn-gitlab:hover {
+  background-color: #f16924;
+  color: #fff;
+}
+
+#modalLogin .modal-body {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+#modalLogin {
+  background-color: rgba(247, 247, 247, 0.7);
+}

@@ -18,14 +18,22 @@ from django.urls import path
 from CauldronApp import views
 
 urlpatterns = [
-    path('github-login', views.github_login_callback),
-    path('logout', views.github_logout),
-    path('create-dashboard', views.create_dashboard),
-    path('dashboard/<slug:dash_name>', views.show_dashboard),
+    path('github-login', views.request_github_login_callback),
+    path('gitlab-login', views.request_gitlab_login_callback),
+    path('logout', views.request_logout),
+
+    # path('create-dashboard', views.create_dashboard),
+    path('new-dashboard', views.request_new_dashboard),
+    path('dashboard/<int:dash_id>/edit', views.request_edit_dashboard),
+    path('dashboard/<int:dash_id>/run', views.request_run_dashboard),
+    path('dashboard/<int:dash_id>', views.request_show_dashboard),
+
     path('dashboard-status/<slug:dash_name>', views.dash_status),
-    path('dashboard-info/<slug:dash_name>', views.dash_info),
+    path('dashboard-info/<int:dash_id>', views.request_dash_info),
     # path('task-logs/<int:task_id>', views.task_logs),
     path('repo-logs/<int:repo_id>', views.repo_logs),
+
     path('', views.homepage),
     # path('admin/', admin.site.urls),
+
 ]

@@ -12,11 +12,12 @@
           Cauldron v2
         </a>
 
-        {% if auth_user %}
+<!--
+        {% if auth_user_username %}
         <div class="dropdown">
           <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <img src="{{ photo_user }}" class="rounded-circle avatar">  
-            <span>{{ auth_user.username }}</span>
+            <span>{{ auth_user_username }}</span>
           </a>
             
           <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
@@ -25,16 +26,58 @@
           </div>
         </div>
         {% else %}
-          <form action="{{ gh_uri_identity }}" method="GET">
+          <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#modalLogin">Login</button>
+          &lt;!&ndash; <form action="{{ gh_uri_identity }}" method="GET">
             <input type="hidden" name="client_id" value="{{ gh_client_id }}">
             <button type="submit" class="btn btn-secondary"  aria-haspopup="true" aria-expanded="false">GitHub Login</button>
-          </form>
+          </form> &ndash;&gt;
         {% endif %}
+-->
       </div>
     </nav>
 {% endblock %}
 
 {% block content %}
+
+<!--
+    <div class="modal fade" id="modalLogin" tabindex="-1" role="dialog" aria-labelledby="modalLoginTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+              <h3 class="col-12 text-center">Sign in</h3>
+          </div>
+          <div class="modal-body">
+              
+              <div class="text-center">
+                <form action="{{ gh_uri_identity }}" method="GET">
+                  <input type="hidden" name="client_id" value="{{ gh_client_id }}">
+                  <button type="submit" class="btn btn-github btn-block"  aria-haspopup="true" aria-expanded="false">
+                      <i class="fab fa-github"></i>
+                    Sign in with <b>GitHub</b>
+                  </button>
+                </form>
+              </div>
+              <div class="text-center">
+                <form action="{{ gl_uri_identity }}" method="GET">
+                  <input type="hidden" name="client_id" value="{{ gl_client_id }}">
+                  <input type="hidden" name="response_type" value="code">
+                  <input type="hidden" name="redirect_uri" value="{{ gl_uri_redirect }}">
+                  <input type="hidden" name="state" value="{{ state }}">
+                  <button type="submit" class="btn btn-gitlab btn-block"  aria-haspopup="true" aria-expanded="false">
+                      <i class="fab fa-gitlab"></i>
+                    Sign in with <b>GitLab</b>
+                  </button>
+                </form>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <p class="text-muted">We will store your token for your analysis. You can revoke the use at any time</p>
+          </div>
+        </div>
+      </div>
+    </div>
+-->
+<!--
 
     <div class="modal fade" id="modalNewDashboard" tabindex="-1" role="dialog" aria-labelledby="modalNewDashboardTitle" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
@@ -48,8 +91,8 @@
           <div class="modal-body">
 
             <div class="container">
+              {% if not auth_user_username %}
               <div class="row">
-                {% if not auth_user %}
                 <div class="col-md-12">
                   <div class="card shadow-sm mb-3">
                     <div class="card-header">
@@ -66,7 +109,10 @@
                     </div>
                   </div>
                 </div>
-                {% else %}
+              </div>
+              {% else %}
+              <h3>GitHub</h3>
+              <div class="row">
                 <div class="col-md-6">
                   <div class="card shadow-sm mb-3">
                     <div class="card-header">
@@ -101,7 +147,36 @@
                     </div>
                   </div>
                 </div>
-                {% endif %}
+              </div>
+              <h3>Gitlab</h3>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card shadow-sm mb-3">
+                    <div class="card-header">
+                      <h4 class="font-weight-normal">Dashboard for a user or organization - Gitlab</h4>
+                    </div>
+                    <div class="card-body">
+                      <form action="/create-dashboard" method="POST">
+                        {% csrf_token %}
+                        <div class="form-group">
+                          <label for="gh-org">Gitlab Owner (User/Organization)</label>
+                          {% if gitlab_allow %}
+                          <input type="text" name="gl-org" class="form-control" id="gl-org" placeholder="Enter a name">
+                          {% else %}
+                          <input type="text" name="gl-org" class="form-control" id="gl-org" placeholder="Enter a name" disabled="">
+                          {% endif %}
+                        </div>
+                        {% if gitlab_allow %}
+                        <button type="submit" class="btn btn-outline-primary">Get Dashboard</button>
+                        {% else %}
+                        <button type="submit" class="btn btn-outline-primary" disabled="">Get Dashboard</button>
+                        {% endif %}
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
               </div>
             </div>
 
@@ -110,7 +185,61 @@
       </div>
     </div>
 
+-->
     <div class="container">
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">
+              <h4 class="font-weight-normal">My dashboards</h4>
+            </div>
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Completed</th>
+                    <th scope="col">Started</th>
+                    <!--<th scope="col">Author</th>-->
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for db in your_dashboards %}
+                  <tr>
+                    {% if db.started %}
+                    <td><a href="/dashboard/{{db.id}}">{{db.name}}</a></td>
+                    {% else %}
+                    <td><a href="/dashboard/{{db.id}}/edit">Edit {{db.name}}</a></td>
+                    {% endif %}
+                    <td>{{db.status}}</td>
+                    <td>{{db.completed}}/{{db.total}}</td>
+                    <td>{{db.started}}</td>
+                    <!--<td>{{db.creator}}</td>-->
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+<!--
+              <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalNewDashboard">
+                New dashboard
+              </button>
+-->
+              <form action="/new-dashboard" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <div class="input-group">
+                    <button class="btn btn-outline-primary" type="submit">Create a dashboard</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
       <div class="row">
         <div class="col-md-12">
           <div class="card shadow-sm mb-3">
@@ -130,7 +259,7 @@
                 <tbody>
                   {% for db in dashboards %}
                   <tr>
-                    <td><a href="/dashboard/{{db.name}}">{{db.name}}</a></td>
+                    <td><a href="/dashboard/{{db.id}}">{{db.name}}</a></td>
                     <td>{{db.status}}</td>
                     <td>{{db.completed}}/{{db.total}}</td>
                     <!--<td>{{db.creator}}</td>-->
@@ -138,9 +267,11 @@
                   {% endfor %}
                 </tbody>
               </table>
+<!--
               <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalNewDashboard">
                 New dashboard
               </button>
+-->
             </div>
           </div>
         </div>
