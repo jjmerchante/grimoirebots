@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block css%}
+<link rel="stylesheet" href="{% static 'css/create_dashboard.css' %}">
+{% endblock %}
+
+{% block navbar %}
+
+    <nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          Cauldron v2
+        </a>
+
+        {% if auth_user_username %}
+        <div class="dropdown">
+          <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <img src="{{ photo_user }}" class="rounded-circle avatar">  
+            <span>{{ auth_user_username }}</span>
+          </a>
+            
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="/logout">Log out</a>
+            <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+{% endblock %}
+
+{% block content %}
+
+    <div class="container">
+      <div class="header-dashboard">
+          <h3>Create a new dashboard</h3>
+      </div>
+      <form action="/dashboard/{{ dash_id }}/run" method="GET">
+        <button type="submit" class="btn btn-primary btn-block text-centered">
+            <b>Create dashboard</b>
+        </button>
+      </form>
+
+
+      <div class="row">
+
+        <!-- ADD REPOS SIDE -->
+
+        <div class="col-md-4">
+          <!-- GITHUB CARD -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="title">GitHub</div>
+            </div>
+            <div class="card-body">
+
+              <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gh_url" placeholder="Enter URL" name="url" {{ gh_disabled }}>
+                    <input type="hidden" name="backend" value="github">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit" {{ gh_disabled }}>Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>User name</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gh_owner" placeholder="Owner/Organization" name="owner" {{ gh_disabled }}>
+                    <input type="hidden" name="backend" value="github">
+                    <input type="hidden" name="action" value="add">
+
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit" {{ gh_disabled }}>Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+            </div>
+            {% if gh_disabled %}
+            <div class="card-footer">
+
+              <p class="text-muted">We need your token for analyzing GitHub repositories.</p>
+              <form action="{{ gh_uri_identity }}" method="GET">
+                <input type="hidden" name="client_id" value="{{ gh_client_id }}">
+                <input type="hidden" name="next" value="sfasdfadsad">
+                <button type="submit" class="btn btn-github btn-block"  aria-haspopup="true" aria-expanded="false">
+                    <i class="fab fa-github"></i>
+                  Sign in with <b>GitHub</b>
+                </button>
+              </form>
+
+            </div>
+            {% endif %}
+          </div>
+          <!-- end GITHUB CARD -->
+
+          <!-- GIT CARD -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="title">Git</div>
+            </div>
+            <div class="card-body">
+
+              <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="git_url" placeholder="Enter URL" name="url">
+                    <input type="hidden" name="backend" value="git">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+          <!-- end GIT CARD -->
+
+          <!-- GITLAB CARD -->
+          <div class="card shadow-sm">
+
+            <div class="card-header">
+              <div class="title">
+                <b>
+                  Gitlab
+                </b>
+              </div>
+            </div>
+
+            <div class="card-body">
+
+              <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gl_url" placeholder="Enter URL" name="url" {{ gl_disabled }}>
+                    <input type="hidden" name="backend" value="gitlab">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit" {{ gl_disabled }}>Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>User name</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gl_owner" placeholder="Owner/Organization" name="owner" disabled>
+                    <input type="hidden" name="backend" value="gitlab">
+                    <input type="hidden" name="action" value="add">
+
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit" disabled>Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {% if gl_disabled %}
+            <div class="card-footer">
+
+              <p class="text-muted">We need your token for analyzing Gitlab repositories.</p>
+              <form action="{{ gl_uri_identity }}" method="GET">
+                <input type="hidden" name="client_id" value="{{ gl_client_id }}">
+                <input type="hidden" name="response_type" value="code">
+                <input type="hidden" name="redirect_uri" value="{{ gl_uri_redirect }}">
+                <!--<input type="hidden" name="state" value="{{ state }}">-->
+                <button type="submit" class="btn btn-gitlab btn-block"  aria-haspopup="true" aria-expanded="false">
+                    <i class="fab fa-gitlab"></i>
+                  Sign in with <b>GitLab</b>
+                </button>
+              </form>
+
+
+            </div>
+            {% endif %}
+  
+
+          </div>
+          <!-- end GITLAB CARD -->
+  
+        </div>
+
+        <!-- LIST REPOS SIDE -->
+        
+        <div class="col-md-8">
+            
+
+          <div class="card card-table shadow-sm">
+            <div class="card-header">
+              Repositories included
+            </div>
+            <div class="card-body table-responsive">
+              <p><b>GitHub</b> <span class="badge badge-dark">{{ gh_repositories | length }}</span></p>
+              {% if gh_repositories %}
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in gh_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+              <p><b>Gitlab</b>  <span class="badge badge-dark">{{ gl_repositories | length }}</span></p>
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in gl_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+
+              <p><b>Git</b>  <span class="badge badge-dark">{{ git_repositories | length }}</span></p>
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in git_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+
+{% endblock %}
