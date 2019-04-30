@@ -7,14 +7,14 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 import os
 import logging
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin, urlencode
 from random import choice
 from string import ascii_lowercase, digits
 from github import Github
 from gitlab import Gitlab
 from slugify import slugify
 
-from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET
+from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET, GL_PRIVATE_TOKEN
 from CauldronApp.models import GithubUser, GitlabUser, Dashboard, Repository, Task, CompletedTask, AnonymousUser
 from CauldronApp.githubsync import GitHubSync
 
@@ -28,18 +28,7 @@ GL_REDIRECT_PATH = '/gitlab-login'
 
 
 def homepage(request):
-    context = dict()
-    # TODO: Review
-    if request.user.is_authenticated:
-        if hasattr(request.user, 'githubuser'):
-            context['auth_user_username'] = request.user.githubuser.username
-            context['photo_user'] = request.user.githubuser.photo
-        elif hasattr(request.user, 'gitlabuser'):
-            context['auth_user_username'] = request.user.gitlabuser.username
-            context['photo_user'] = request.user.gitlabuser.photo
-        else:
-            context['auth_user_username'] = 'unknown name'
-            context['photo_user'] = 'unknown photo'
+    context = create_context(request)
 
     dashboards = Dashboard.objects.filter()
     context_dbs = []
@@ -178,8 +167,12 @@ def request_gitlab_login_callback(request):
                       context={'title': 'Gitlab error',
                                'description': "Error getting the token from Gitlab endpoint"})
 
+    # TODO: Token modify to auth token. Modify all the TODOs with the same name
+    token = GL_PRIVATE_TOKEN
+
     # Authenticate/register an user, and login
-    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
+    # TODO: Token modify to auth token
+    gl = Gitlab(url='https://gitlab.com', private_token=token)
     gl.auth()
     username = gl.user.attributes['username']
     photo_url = gl.user.attributes['avatar_url']
@@ -189,17 +182,17 @@ def request_gitlab_login_callback(request):
     return HttpResponseRedirect('/')
 
 
-def tricky_authentication(req, EntityUser, username, token, photo_url):
+def tricky_authentication(req, BackendUser, username, token, photo_url):
     """
     Tricky authentication ONLY for login callbacks.
     :param req: request from login callback
-    :param EntityUser: GitlabUser, GithubUser... Full model object with the tokens
+    :param BackendUser: GitlabUser, GithubUser... Full model object with the tokens
     :param username: username for the entity
     :param token: token for the entity
     :param photo_url: photo for the user and the entity
     :return:
     """
-    ent_user = EntityUser.objects.filter(username=username).first()
+    ent_user = BackendUser.objects.filter(username=username).first()
     if ent_user:
         dj_ent_user = ent_user.user
     else:
@@ -225,7 +218,7 @@ def tricky_authentication(req, EntityUser, username, token, photo_url):
             if anony_user:
                 anony_user.delete()
             # Create the token entry and associate with the account
-            gl_entry = EntityUser(user=req.user, username=username, token=token, photo=photo_url)
+            gl_entry = BackendUser(user=req.user, username=username, token=token, photo=photo_url)
             gl_entry.save()
         # Django Entity user doesn't exist, none is authenticated
         else:
@@ -233,7 +226,7 @@ def tricky_authentication(req, EntityUser, username, token, photo_url):
             dj_user = create_django_user()
             login(req, dj_user)
             # Create the token entry and associate with the account
-            gl_entry = EntityUser(user=req.user, username=username, token=token, photo=photo_url)
+            gl_entry = BackendUser(user=req.user, username=username, token=token, photo=photo_url)
             gl_entry.save()
 
 
@@ -301,123 +294,147 @@ def request_logout(request):
 #                                'description': "We need URL, user or organization for analyzing"})
 
 
+# TODO: Add state
 def request_edit_dashboard(request, dash_id):
-    if not request.user.is_authenticated:
-        return render(request, 'error.html', status=403,
-                      context={'title': 'Forbidden',
-                               'description': "You are not allowed to edit this dashboard. "
-                                              "Only the creator can. Log in first"})
     dash = Dashboard.objects.filter(id=dash_id).first()
     if not dash:
-        return render(request, 'error.html', status=404,
-                      context={'title': 'Dashboard not found',
-                               'description': "The dashboard you want to edit doesn't exist in this server"})
+        return JsonResponse({'status': 'error', 'message': 'Dashboard not found'}, status=404)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'You are not authenticated', 'redirect': '/login?next=/dashboard/' + str(dash_id)}, status=401)
+
     if request.user != dash.creator:
-        return render(request, 'error.html', status=403,
-                      context={'title': 'Forbidden',
-                               'description': "You are not allowed to edit this dashboard. "
-                                              "Only the creator can."})
-    if dash.started:
-        return render(request, 'error.html', status=404,
-                      context={'title': 'Dashboard started',
-                               'description': "You cannot modify this dashboard (not implemented) But you can create a new one."})
+        return JsonResponse({'status': 'error', 'message': 'You cannot edit this dashboard'}, status=403)
 
-    if request.method == 'POST':
-        backend = request.POST.get('backend', None)
-        url = request.POST.get('url', None)
-        owner = request.POST.get('owner', None)
-        action = request.POST.get('action', None)
-        if not action or not backend:
-            return render(request, 'error.html', status=400,
-                          context={'title': 'Bad Request',
-                                   'description': "You didn't POST the backend or the action"})
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Only POST method allowed'}, status=405)
 
-        # TODO: support action for adding/deleting
-        if url:
-            # TODO: owner/repository format
-            if backend == 'github' and not valid_github_url(url):
-                return render(request, 'error.html', status=400,
-                              context={'title': 'Invalid URL',
-                                       'description': "Are you sure it's a GitHub URL? Don't try to break me :)"})
+    # Get the possible data posted
+    action = request.POST.get('action', None)
+    owner = request.POST.get('owner', None)
+    url = request.POST.get('url', None)
+    backend = request.POST.get('backend', None)
 
-            if backend == 'gitlab' and not valid_gitlab_url(url):
-                return render(request, 'error.html', status=400,
-                              context={'title': 'Invalid URL',
-                                       'description': "Are you sure it's a Gitlab URL? Don't try to break me :)"})
+    if not action or action not in ('add', 'delete'):
+        return JsonResponse({'status': 'error', 'message': 'Action not found in the POST or action not allowed'},
+                            status=400)
 
-            add_to_dashboard(dash, backend, url)
-            if backend in ('gitlab', 'github'):
-                # Add git to the analysis
-                add_to_dashboard(dash, 'git', url + '.git')
+    if not backend or backend not in ('github', 'gitlab', 'git'):
+        return JsonResponse({'status': 'error', 'message': 'Backend not found in the POST or action not allowed'},
+                            status=400)
+
+    if not url and not owner:
+        return JsonResponse({'status': 'error', 'message': 'We need a url or a owner to add/delete'},
+                            status=400)
+
+    if action == 'delete':
+        print('deleting repository [{}|{}] from dashboard[{}]'.format(backend, url, dash_id))
+        if not url or not backend:
+            return JsonResponse({'status': 'error', 'message': 'We need a url and a backend for deleting'},
+                                status=400)
+        repo = Repository.objects.filter(url=url, backend=backend).first()
+        if not repo:
+            return JsonResponse({'status': 'error', 'message': 'Repository not found'},
+                                status=404)
+        repo.dashboards.remove(dash)
+        task = Task.objects.filter(repository=repo).first()
+        if task and task.user == dash.creator and not task.worker_id:
+            task.delete()
+
+        return JsonResponse({'status': 'deleted'})
+
+    if backend == 'github':
+        if not hasattr(request.user, 'githubuser'):
+            params = urlencode({'client_id': GH_CLIENT_ID})
+            gh_url_oauth = "{}?{}".format(GH_URI_IDENTITY, params)
+            return JsonResponse({'status': 'error',
+                                 'message': 'We need your GitHub token for analyzing this kind of repositories',
+                                 'redirect': gh_url_oauth},
+                                status=401)
 
         if owner:
-            if backend == 'github':
-                gh_sync = GitHubSync(request.user.githubuser.token)
-                try:
-                    git_list, github_list = gh_sync.get_repo(owner, False)
-                except Exception:
-                    logging.warning("Error for GitHub owner {}".format(owner))
-                    return render(request, 'error.html', status=404,
-                                  context={'title': 'Github API error',
-                                           'description': "Error getting the repositories for that owner"})
+            gh_sync = GitHubSync(request.user.githubuser.token)
+            try:
+                git_list, github_list = gh_sync.get_repo(owner, False)
+            except Exception:
+                logging.warning("Error for GitHub owner {}".format(owner))
+                return JsonResponse({'status': 'error', 'message': 'Error from GitHub API. Does that user exist?'},
+                                    status=500)
+            for url in github_list:
+                repo = add_to_dashboard(dash, backend, url)
+                start_task(repo, request.user, False)
 
-                for url in github_list:
-                    add_to_dashboard(dash, backend, url)
+            for url in git_list:
+                repo = add_to_dashboard(dash, 'git', url)
+                start_task(repo, request.user, False)
+        elif url:
+            if not valid_github_url(url):
+                return JsonResponse({'status': 'error', 'message': 'Invalid GitHub URL format.'},
+                                    status=400)
+            # Add to github and git
+            repo = add_to_dashboard(dash, backend, url)
+            start_task(repo, request.user, False)
+            repo = add_to_dashboard(dash, 'git', url + '.git')
+            start_task(repo, request.user, False)
 
-                for url in git_list:
-                    add_to_dashboard(dash, 'git', url)
-            elif backend == 'gitlab':
-                try:
-                    gitlab_list, git_list = get_gl_repos(owner, request.user.gitlabuser.token)
-                except Exception:
-                    logging.warning("Error for Gitlab owner {}".format(owner))
-                    return render(request, 'error.html', status=404,
-                                  context={'title': 'Gitlab API error',
-                                           'description': "Error getting the repositories for that owner"})
+        return JsonResponse({'status': 'ok'})
 
-                for url in gitlab_list:
-                    add_to_dashboard(dash, backend, url)
+    elif backend == 'gitlab':
+        if not hasattr(request.user, 'gitlabuser'):
+            params = urlencode({'client_id': GL_CLIENT_ID,
+                                'response_type': 'code',
+                                'redirect_uri': request.build_absolute_uri(GL_REDIRECT_PATH)})
+            gh_url_oauth = "{}?{}".format(GL_URI_IDENTITY, params)
+            return JsonResponse({'status': 'error',
+                                 'message': 'We need your GitLab token for analyzing this kind of repositories',
+                                 'redirect': gh_url_oauth},
+                                status=401)
 
-                for url in git_list:
-                    add_to_dashboard(dash, 'git', url)
+        if owner:
+            try:
+                gitlab_list, git_list = get_gl_repos(owner, request.user.gitlabuser.token)
+            except Exception:
+                logging.warning("Error for Gitlab owner {}".format(owner))
+                return JsonResponse({'status': 'error', 'message': 'Error from GitLab API. Does that user exist?'},
+                                    status=500)
 
+            for url in gitlab_list:
+                repo = add_to_dashboard(dash, backend, url)
+                start_task(repo, request.user, False)
 
-        else:
-            # TODO: Implement Gitlab owner
-            return render(request, 'error.html', status=500,
-                          context={'title': 'Not implemented',
-                                   'description': "Error. Still not implemented"})
+            for url in git_list:
+                repo = add_to_dashboard(dash, 'git', url)
+                start_task(repo, request.user, False)
+        elif url:
+            if not valid_gitlab_url(url):
+                return JsonResponse({'status': 'error', 'message': 'Invalid Gitlab URL format.'},
+                                    status=400)
+            # Add to gitlab and git
+            repo = add_to_dashboard(dash, backend, url)
+            start_task(repo, request.user, False)
+            repo = add_to_dashboard(dash, 'git', url + '.git')
+            start_task(repo, request.user, False)
 
-    # FOR GET AND POST SHOW THE RESULTS
+        return JsonResponse({'status': 'ok'})
 
-    # Identities
-    context = dict()
-    context['gh_uri_identity'] = GH_URI_IDENTITY
-    context['gh_client_id'] = GH_CLIENT_ID
-    context['gl_uri_identity'] = GL_URI_IDENTITY
-    context['gl_client_id'] = GL_CLIENT_ID
-    context['gl_uri_redirect'] = request.build_absolute_uri(GL_REDIRECT_PATH)
-    gh_user = GithubUser.objects.filter(user=request.user)
-    if not gh_user:
-        context['gh_disabled'] = 'disabled'
+    # TODO: Implement GIT
     else:
-        context['gh_disabled'] = ''
-    gl_user = GitlabUser.objects.filter(user=request.user)
-    if not gl_user:
-        context['gl_disabled'] = 'disabled'
-    else:
-        context['gl_disabled'] = ''
+        return JsonResponse({'status': 'error', 'message': 'Backend not found'},
+                            status=400)
 
-    # Repositories
-    gh_repos = Repository.objects.filter(backend='github', dashboards__id=dash_id)
-    gl_repos = Repository.objects.filter(backend='gitlab', dashboards__id=dash_id)
-    git_repos = Repository.objects.filter(backend='git', dashboards__id=dash_id)
-    context['gh_repositories'] = list(repo for repo in gh_repos)
-    context['gl_repositories'] = list(repo for repo in gl_repos)
-    context['git_repositories'] = list(repo for repo in git_repos)
-    context['dash_id'] = dash_id
 
-    return render(request, 'create_dashboard.html', context=context)
+def start_task(repo, user, restart=False):
+    """
+    Start a new task for the given repository
+    :param repo: Repository object to analyze
+    :param user: User that make the analysis
+    :param restart: If the task is not pending or running, start it. Else only if not completed
+    :return:
+    """
+    if not Task.objects.filter(repository=repo).first():
+        if restart or not CompletedTask.objects.filter(repository=repo).first():
+            new_task = Task(repository=repo, user=user)
+            new_task.save()
 
 
 def request_run_dashboard(request, dash_id):
@@ -488,7 +505,7 @@ def request_new_dashboard(request):
     dash.name = "Dashboard_{}".format(dash.id)
     dash.save()
 
-    return HttpResponseRedirect('/dashboard/{}/edit'.format(dash.id))
+    return HttpResponseRedirect('/dashboard/{}'.format(dash.id))
 
 
 def add_to_dashboard(dash, backend, url):
@@ -497,7 +514,8 @@ def add_to_dashboard(dash, backend, url):
     :param dash: Dashboard row from db
     :param url: url for the analysis
     :param backend: Identity used like github or gitlab. See models.py for more details
-    :return: None
+    :param task_creator: user to start a task with that repository
+    :return: Repostory created
     """
     repo_obj = Repository.objects.filter(url=url, backend=backend).first()
     index_name = create_index_name(backend, url)
@@ -506,6 +524,7 @@ def add_to_dashboard(dash, backend, url):
         repo_obj.save()
     # Add the repo to the dashboard
     repo_obj.dashboards.add(dash)
+    return repo_obj
 
 
 def create_index_name(backend, url):
@@ -599,6 +618,7 @@ def get_dashboard_info(dash_id):
         item = dict()
         item['id'] = repo.id
         item['url'] = repo.url
+        item['backend'] = repo.backend
         item['status'] = get_repo_status(repo)
 
         task = Task.objects.filter(repository=repo).first()
@@ -626,33 +646,74 @@ def get_dashboard_info(dash_id):
     return info
 
 
-@ensure_csrf_cookie
 def request_show_dashboard(request, dash_id):
+    """
+    View for a dashboard. It can be editable if the user is authenticated and is the creator
+    :param request:
+    :param dash_id:
+    :return:
+    """
     if request.method != 'GET':
         return render(request, 'error.html', status=405,
                       context={'title': 'Method Not Allowed',
                                'description': "Only GET methods allowed"})
-    dash = Dashboard.objects.filter(id=dash_id).first()
-    # CREATE RESPONSE
-    context = dict()
-    context['gh_uri_identity'] = GH_URI_IDENTITY
-    context['gh_client_id'] = GH_CLIENT_ID
-    if hasattr(request.user, 'githubuser'):
-        context['auth_user_username'] = request.user.githubuser.username
-        context['photo_user'] = request.user.githubuser.photo
-    elif hasattr(request.user, 'gitlabuser'):
-        context['auth_user_username'] = request.user.gitlabuser.username
-        context['photo_user'] = request.user.gitlabuser.photo
-    else:
-        context['auth_user_username'] = 'unknown name'
-        context['photo_user'] = 'unknown photo'
 
+    dash = Dashboard.objects.filter(id=dash_id).first()
+    if not dash:
+        return render(request, 'error.html', status=405,
+                      context={'title': 'Dashboard not found',
+                               'description': "This dashboard was not found in this server"})
+
+    # CREATE RESPONSE
+    context = create_context(request)
+    # Information for the dashboard
     if dash:
         context['dashboard'] = dash
         context['dashboard_status'] = get_dashboard_status(dash.name)['general']
         context['repositories'] = Repository.objects.filter(dashboards__id=dash_id)
 
+    context['editable'] = request.user.is_authenticated and request.user == dash.creator
+
+    # Repositories
+    gh_repos = Repository.objects.filter(backend='github', dashboards__id=dash_id)
+    gl_repos = Repository.objects.filter(backend='gitlab', dashboards__id=dash_id)
+    git_repos = Repository.objects.filter(backend='git', dashboards__id=dash_id)
+    context['gh_repositories'] = list(repo for repo in gh_repos)
+    context['gl_repositories'] = list(repo for repo in gl_repos)
+    context['git_repositories'] = list(repo for repo in git_repos)
+    context['dash_id'] = dash_id
+
     return render(request, 'dashboard.html', context=context)
+
+
+def create_context(request):
+    """
+    Create a new context dict with some common information among views
+    :param request:
+    :return:
+    """
+    context = dict()
+
+    # Generate information for identities
+    context['gh_uri_identity'] = GH_URI_IDENTITY
+    context['gh_client_id'] = GH_CLIENT_ID
+    context['gl_uri_identity'] = GL_URI_IDENTITY
+    context['gl_client_id'] = GL_CLIENT_ID
+    context['gl_uri_redirect'] = request.build_absolute_uri(GL_REDIRECT_PATH)
+
+    # Information for the photo and the profile
+    if hasattr(request.user, 'githubuser'):
+        context['authenticated'] = True
+        context['auth_user_username'] = request.user.githubuser.username
+        context['photo_user'] = request.user.githubuser.photo
+    elif hasattr(request.user, 'gitlabuser'):
+        context['authenticated'] = True
+        context['auth_user_username'] = request.user.gitlabuser.username
+        context['photo_user'] = request.user.gitlabuser.photo
+    else:
+        context['authenticated'] = False
+
+    return context
 
 
 def repo_status(request, repo_id):
@@ -754,9 +815,10 @@ def get_repo_status(repo):
 
 
 def get_gl_repos(owner, token):
-    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
+    # TODO: Token modify to auth token
+    gl = Gitlab(url='https://gitlab.com', private_token=token)
     gl.auth()
-    user = gl.users.list(username=owner)
+    user = gl.users.list(username=owner)[0]
     if not user:
         user = gl.groups.get(owner)
 

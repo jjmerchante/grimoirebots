@@ -1,22 +1,178 @@
 var LogsInterval;
 
 $(document).ready(function(){
-    // Configure ajax for using the CSRF token
-    var csrftoken = getCookie('csrftoken');
-    $.ajaxSetup({
-        beforeSend: function(xhr, settings) {
-            if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-                xhr.setRequestHeader("X-CSRFToken", csrftoken);
-            }
-        }
-    });
     var dash_id = window.location.pathname.split('/')[2];
     getInfo(dash_id);
     $('#logModal').on('show.bs.modal', onShowLogsModal);
     $('#logModal').on('hidden.bs.modal', OnHideLogsModal);
+    loadLastStatus();
+    $('form#gh_url_add').submit(submitURL);
+    $('form#gh_owner_add').submit(submitOwner);
+    $('form#gl_url_add').submit(submitURL);
+    $('form#gl_owner_add').submit(submitOwner);
+
+    $('.btn-delete').click(deleteRepo);
+
+    loadCallbackFilters();
 });
 
+function loadLastStatus(){
+    if(!LocalStorageAvailable){
+        return
+    }
+    var gh_owner = window.localStorage.getItem('gh_owner');
+    var gh_url = window.localStorage.getItem('gh_url');
+    var gl_owner = window.localStorage.getItem('gl_owner');
+    var gl_url = window.localStorage.getItem('gl_url');
+    window.localStorage.removeItem('gh_owner');
+    window.localStorage.removeItem('gh_url');
+    window.localStorage.removeItem('gl_owner');
+    window.localStorage.removeItem('gl_url');
+    $('#gh_owner').val(gh_owner);
+    $('#gh_url').val(gh_url);
+    $('#gl_owner').val(gl_owner);
+    $('#gl_url').val(gl_url);
+}
 
+function loadCallbackFilters(){
+    $('button#option-all').click(function () {
+        $('tr[data-backend=git]').show();
+        $('tr[data-backend=gitlab]').show();
+        $('tr[data-backend=github]').show();
+    });
+
+    $('button#option-github').click(function () {
+        $('tr[data-backend=git]').hide();
+        $('tr[data-backend=gitlab]').hide();
+        $('tr[data-backend=github]').show();
+    });
+
+    $('button#option-git').click(function () {
+        $('tr[data-backend=git]').show();
+        $('tr[data-backend=gitlab]').hide();
+        $('tr[data-backend=github]').hide();
+    });
+
+    $('button#option-gitlab').click(function () {
+        $('tr[data-backend=git]').hide();
+        $('tr[data-backend=gitlab]').show();
+        $('tr[data-backend=github]').hide();
+    });
+}
+
+function deleteRepo(event) {
+    var id_repo = event.target.dataset['repo'];
+    var backend = $(`tr#repo-${id_repo}`).data('backend');
+    var url_repo = $(`tr#repo-${id_repo} td.repo-url`).html();
+
+    var deleteBtn = $(this);
+    deleteBtn.html(`<div class="spinner-border text-dark spinner-border-sm" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>`);
+
+
+    $.post(url = window.location.pathname + "/edit", 
+           data = {'action': 'delete', 'backend': backend, 'url': url_repo})
+        .done(function (data) {
+            showAlert('Deleted', `The repository ${url_repo} was deleted from this dashboard`, 'success');
+            $(`tr#repo-${id_repo}`).remove();
+        })
+        .fail(function (data) {
+            showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
+        })
+        .always(function(){deleteBtn.html('Delete')})
+
+    
+}
+
+function getInfo(dash_id) {
+    $.getJSON('/dashboard-info/' + dash_id, function(data) {
+        if (!data || !data.exists){
+            return
+        }
+        updateBadgesRepos(data.repos);
+        data.repos.forEach(function(repo){
+            setIconStatus('#repo-' + repo.id + ' .repo-status', repo.status);
+            
+            $('#repo-' + repo.id + " .repo-creation").html(moment(repo.created).fromNow());
+            var duration = get_duration(repo);
+            $('#repo-' + repo.id + " .repo-duration").html(duration);
+
+        });
+        $('#general-status').html(data.general);
+        if (data.general == 'PENDING' || data.general == 'RUNNING') {
+            setTimeout(getInfo, 5000, dash_id);
+        }
+    }); 
+}
+
+function setIconStatus(jq_selector, status) {
+    /**
+     * Status could be UNKNOWN, RUNNING, PENDING, COMPLETED OR ERROR
+     */
+    var icon;
+    switch (status) {
+        case 'COMPLETED':
+            icon = '<i class="fas fa-check text-success"></i>';
+            break;
+        case 'PENDING':
+            icon = '<div class="spinner-grow spinner-grow-sm text-primary" role="status"><span class="sr-only">...</span></div> Not started...';
+            break;
+        case 'RUNNING':
+            icon = '<div class="spinner-border spinner-border-sm text-secondary" role="status"><span class="sr-only">...</span></div> Running...';
+            break;
+        case 'ERROR':
+            icon = '<i class="fas fa-exclamation text-warning"></i> Error.';
+            break;
+        case 'UNKNOWN':
+            icon = '<i class="fas fa-question text-warning"></i>';
+            break;
+        default:
+            break;
+    }
+    $(jq_selector).html(icon);
+}
+
+function get_duration(repo) {
+    var output = "";
+    if (repo.started){
+        var a = moment(repo.started);
+        var b = "";
+        if (repo.completed){
+            b = moment(repo.completed);
+        } else {
+            b = moment();
+        }
+        output = moment.utc(b.diff(a)).format("HH:mm:ss")
+    } else {
+        output = "Not started";
+    }
+    return output
+}
+
+function updateBadgesRepos(repo_arr) {
+    var repos_gh = 0;
+    var repos_gl = 0;
+    var repos_git = 0;
+    repo_arr.forEach(function(repo){
+        if (repo.backend == 'github'){
+            repos_gh += 1;
+        } else if (repo.backend == 'gitlab'){
+            repos_gl += 1;
+        } else if (repo.backend == 'git'){
+            repos_git += 1;
+        }        
+    });
+    $('.badge-repos-all').html(repos_git + repos_gh + repos_gl)
+    $('.badge-repos-gh').html(repos_gh)
+    $('.badge-repos-gl').html(repos_gl)
+    $('.badge-repos-git').html(repos_git)
+}
+
+
+/****************************
+ *     LOGS FUNCTIONS       *
+ ****************************/
 function onShowLogsModal(event) {
     var button = $(event.relatedTarget);
     var id_repo = button.data('repo');
@@ -58,92 +214,89 @@ function updateLogs(id_repo){
     });
 }
 
-function getInfo(dash_id) {
-    $.getJSON('/dashboard-info/' + dash_id, function(data) {
-        if (!data || !data.exists){
-            return
-        }
-        data.repos.forEach(function(repo){
-            setIconStatus('#repo-' + repo.id + ' .repo-status', repo.status);
-            $('#repo-' + repo.id + " .repo-creation").html(moment(repo.created).fromNow());
-            var duration = get_duration(repo);
-            $('#repo-' + repo.id + " .repo-duration").html(duration);
 
-        });
-        $('#general-status').html(data.general);
-        if (data.general == 'PENDING' || data.general == 'RUNNING') {
-            setTimeout(getInfo, 5000, dash_id);
-        }
-    });
+
+/****************************
+ *     GITHUB GITLAB URL    *
+ ****************************/
+function submitURL(event) {
+    var addBtn = $(`#${event.target.id} button`);
+    addBtn.html(`<div class="spinner-border text-dark spinner-border-sm" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>`);
     
+    $.post(url = window.location.pathname + "/edit", 
+           data = $(this).serializeArray())
+        .done(function (data) {onURLAdded(data, event.target)})
+        .fail(function (data) {onURLFail(data, event.target)})
+        .always(function(){addBtn.html('Add')})
+    event.preventDefault()
 }
 
+function onURLAdded(data, target) {
+    showAlert(`Success`, `URL added correctly. Reloading the list of repositories`, 'success');
+    setTimeout(function(){window.location.reload()}, 2000);
+}
 
-function setIconStatus(jq_selector, status) {
-    /**
-     * Status could be UNKNOWN, RUNNING, PENDING, COMPLETED OR ERROR
-     */
-    var icon;
-    switch (status) {
-        case 'COMPLETED':
-            icon = '<i class="fas fa-check text-success"></i>';
-            break;
-        case 'PENDING':
-            icon = '<div class="spinner-grow spinner-grow-sm text-primary" role="status"><span class="sr-only">...</span></div> Not started...';
-            break;
-        case 'RUNNING':
-            icon = '<div class="spinner-border spinner-border-sm text-secondary" role="status"><span class="sr-only">...</span></div> Running...';
-            break;
-        case 'ERROR':
-            icon = '<i class="fas fa-exclamation text-warning"></i> Error.';
-            break;
-        case 'UNKNOWN':
-            icon = '<i class="fas fa-question text-warning"></i>';
-            break;
-        default:
-            break;
+function onURLFail(data, target) {
+    if(!data.hasOwnProperty('responseJSON')){
+        showAlert(`Unknown error from server`, data.responseText, 'danger')    
+        return;
     }
-    $(jq_selector).html(icon);
-}
-
-
-function get_duration(repo) {
-    var output = "";
-    if (repo.started){
-        var a = moment(repo.started);
-        var b = "";
-        if (repo.completed){
-            b = moment(repo.completed);
-        } else {
-            b = moment();
+    if (data.responseJSON.hasOwnProperty('redirect')){
+        if(LocalStorageAvailable){
+            var input_target = $(`#${target.id} input[name=url]`);
+            window.localStorage.setItem('location', window.location.href);
+            window.localStorage.setItem(input_target.attr('id'), input_target.val());
         }
-        output = moment.utc(b.diff(a)).format("HH:mm:ss")
+        var a_redirect = `<a href="${data.responseJSON['redirect']}"> Redirect now</a>`
+        var redirect_message =  "<p>Redirecting in 5 seconds to the Oauth page...</p>"
+        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
+        setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
     } else {
-        output = "Not started";
+        showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
     }
-    return output
 }
 
+/******************************
+ *     GITHUB GITLAB OWNER    *
+ ******************************/
+function submitOwner(event) {
+    var addBtn = $(`#${event.target.id} button`);
+    addBtn.html(`<div class="spinner-border text-dark spinner-border-sm" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>`);
 
-// Django function to adquire a cookie
-function getCookie(name) {
-    var cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var cookie = jQuery.trim(cookies[i]);
-            // Does this cookie string begin with the name we want?
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+    $.post(url = window.location.pathname + "/edit", 
+           data = $(this).serializeArray())
+        .done(function (data) {onOwnerAdded(data, event.target)})
+        .fail(function (data) {onOwnerFail(data, event.target)})
+        .always(function () {addBtn.html('Add');})
+        event.preventDefault()
+}
+
+function onOwnerAdded(data, target) {
+    showAlert(`Success`, `User/organization added correctly. Reloading the list of repositories`, 'success');
+    setTimeout(function(){window.location.reload()}, 2000);
+}
+
+function onOwnerFail(data, target) {
+    if(!data.hasOwnProperty('responseJSON')){
+        showAlert(`Unknown error from server`, data.responseText, 'danger')    
+        return;
+    }
+    if (data.responseJSON.hasOwnProperty('redirect')){
+        var input_target = $(`#${target.id} input[name=owner]`);
+        if(LocalStorageAvailable){
+            window.localStorage.setItem('location', window.location.href);
+            window.localStorage.setItem(input_target.attr('id'), input_target.val());
         }
+
+        var a_redirect = `<a href="${data.responseJSON['redirect']}"> Redirect now</a>`;
+        var redirect_message =  "<p>Redirecting in 5 seconds to the Oauth page...</p>"
+        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
+        setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
+    } else {
+        showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
     }
-    return cookieValue;
-}
-
-
-function csrfSafeMethod(method) {
-    // these HTTP methods do not require CSRF protection
-    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
 }

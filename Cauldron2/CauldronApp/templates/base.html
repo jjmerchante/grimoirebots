@@ -17,11 +17,146 @@
     <title>Cauldron 2</title>
   </head>
   <body>
-    {% block navbar%}
-    {% endblock %}
+    <!-- BEGIN NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+          Cauldron v2
+        </a>
+
+        {% if authenticated %}
+        <div class="dropdown">
+          <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <img src="{{ photo_user }}" class="rounded-circle avatar">  
+            <span>{{ auth_user_username }}</span>
+          </a>
+            
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="/logout">Log out</a>
+            <!--<a class="dropdown-item" href="/profile">Profile</a>-->
+          </div>
+        </div>
+        {% else %}
+        <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#modalLogin">
+          Login
+        </button>
+        {% endif %}
+      </div>
+    </nav>
+    <!-- END NAVBAR-->
+
+
+
+    <!-- BEGIN Modal for login -->
+    <div class="modal fade" id="modalLogin" tabindex="-1" role="dialog" aria-labelledby="modalLoginTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+              <h3 class="col-12 text-center">Sign in</h3>
+          </div>
+          <div class="modal-body">
+              
+              <div class="text-center">
+                <form action="{{ gh_uri_identity }}" method="GET">
+                  <input type="hidden" name="client_id" value="{{ gh_client_id }}">
+                  <button type="submit" class="btn btn-github btn-block"  aria-haspopup="true" aria-expanded="false">
+                      <i class="fab fa-github"></i>
+                    Sign in with <b>GitHub</b>
+                  </button>
+                </form>
+              </div>
+              <div class="text-center">
+                <form action="{{ gl_uri_identity }}" method="GET">
+                  <input type="hidden" name="client_id" value="{{ gl_client_id }}">
+                  <input type="hidden" name="response_type" value="code">
+                  <input type="hidden" name="redirect_uri" value="{{ gl_uri_redirect }}">
+                  <button type="submit" class="btn btn-gitlab btn-block"  aria-haspopup="true" aria-expanded="false">
+                      <i class="fab fa-gitlab"></i>
+                    Sign in with <b>GitLab</b>
+                  </button>
+                </form>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <p class="text-muted">We will store your token for your analysis. You can revoke the use at any time</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Modal for login -->
+  
+
+
+    <!-- BEGIN Container for alerts -->
+    <div class="container">
+      <div id="alert-container" style="display: none;">
+      </div>
+    </div>
+    <!-- END Container for alerts-->
+
+
+    <!-- BEGIN Container for modals -->
+    <div class="modal" tabindex="-1" role="dialog" id="modal-alert">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"></h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Container for modals-->
+
+
+    <!-- BEGIN //Not used, but here if neccesary// Toast list for notifications-->
+    <div aria-live="polite" aria-atomic="true" style="position: fixed; min-height: 200px; width: 100%">
+      <!-- Position it -->
+      <div style="position: absolute; top: 0; right: 0;">
+    
+        <!-- Then put toasts within -->
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="5000">
+          <div class="toast-header">
+            <img src="..." class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Bootstrap</strong>
+            <small class="text-muted">just now</small>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            See? Just like this.
+          </div>
+        </div>
+    
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true"  data-delay="5000">
+          <div class="toast-header">
+            <img src="..." class="rounded mr-2" alt="...">
+            <strong class="mr-auto">Bootstrap</strong>
+            <small class="text-muted">2 seconds ago</small>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            Heads up, toasts will stack automatically
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Toast list for notifications-->
+
+    
 
     {% block content %}
     {% endblock %}
+
+
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -29,6 +164,8 @@
     <!--<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    
+    <script src="{% static 'js/common.js' %}" charset="utf-8"></script>
 
     {% block javascript %}
     {% endblock %}

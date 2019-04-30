@@ -5,140 +5,343 @@
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 {% endblock %}
 
-{% block navbar %}
-<nav class="navbar navbar-dark bg-dark shadow-sm mb-3">
-  <div class="container">
-    <a class="navbar-brand" href="/">
-      Cauldron v2
-    </a>
-
-    {% if auth_user_username %}
-    <div class="dropdown">
-      <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        <img src="{{ photo_user }}" class="rounded-circle avatar">
-        <span>{{ auth_user_username }}</span>
-      </a>
-
-      <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-        <a class="dropdown-item" href="/logout">Log out</a>
-        <a target="_blank" rel="noreferrer noopener"class="dropdown-item text-danger" href="https://github.com/settings/connections/applications/{{ gh_client_id }}">Revoke access</a>
-      </div>
-    </div>
-    {% else %}
-      <form action="{{ gh_uri_identity }}" method="GET">
-        <input type="hidden" name="client_id" value="{{ gh_client_id }}">
-        <button type="submit" class="btn btn-secondary"  aria-haspopup="true" aria-expanded="false">GitHub Login</button>
-      </form>
-    {% endif %}
-  </div>
-</nav>
-{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="header-dashboard">
-    {% if dashboard %}
-      <h3>Control panel for '{{dashboard.name}}'</strong></h3>
-    {% else %}
-      <h3>Dashboard not found</h3>
-    {% endif %}
-  </div>
-  <div class="body-dashboard pt-2">
-      {% if dashboard %}
-      <!-- HIDDEN. To know the status of the dashboard on load -->
-      <span hidden="" id="initial-status">{{ dashboard_status }}</span>
-      <div class="info-panel">
-          <span><i class="fas fa-tasks text-primary"></i>  Repositories for this dashboard: {{repositories.count}}</span>
-        <hr>
-        <span>
-          <i class="fas fa-spinner text-success"></i>
-            Status:  
-            <span id="general-status">
-              <div class="spinner-border spinner-border-sm" role="status">
-                <span class="sr-only">Loading...</span>
+
+    <div class="container-fluid">
+
+        
+
+             
+      <div class="row">
+
+        <!-- ADD REPOS SIDE -->
+        {% if editable %}
+        <div class="col-md-3">
+            <div class="header-dashboard">
+                  <h4>Add repositories</h4>
               </div>
-            </span>
-          </span>
-        <!--<hr>
-        <a href=""> <span><i class="fas fa-chart-line text-warning"></i>  Dashboard</span></a>
-        -->
-      </div>
-      <div>
-        <br>
-        <table class="table table-hover repos-table">
-          <thead>
-            <tr>
-              <th scope="col" class="text-muted">Status</th>
-              <th scope="col">Backend</th>
-              <th scope="col">Repository</th>
-              <th scope="col">Creation</th>
-              <th scope="col">Duration</th>
-              <th scope="col">Logs</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for repo in repositories %}
-            <tr class="repo-entry" id="repo-{{repo.id}}">
-              <td class="repo-status">
-                <div class="spinner-border spinner-border-sm" role="status">
-                  <span class="sr-only">Loading...</span>
-                </div>
-              </td>
-              <td class="repo-backend">{{ repo.backend }}</td>
-              <td class="repo-name">{{ repo.url }}</td>
-              <td>
-                <i class="fas fa-calendar-alt text-muted"></i> 
-                <span class="repo-creation">
-                    <div class="spinner-border spinner-border-sm" role="status">
-                      <span class="sr-only">Loading...</span>
+          <!-- GITHUB CARD -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="title">GitHub</div>
+            </div>
+            <div class="card-body">
+
+              <form action="" method="post" id="gh_url_add">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gh_url" placeholder="Enter URL" name="url">
+                    <input type="hidden" name="backend" value="github">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
                     </div>
-                </span>
-              </td>
-              <td>
-                <i class="fas fa-stopwatch text-muted"></i>
-                <span class="repo-duration">
-                  <div class="spinner-border spinner-border-sm" role="status">
-                    <span class="sr-only">Loading...</span>
                   </div>
-                </span>
-              </td>
-              <td>
-                <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#logModal" data-repo="{{repo.id}}">Logs</button>
-              </td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
+                </div>
+              </form>
 
-      {% endif %}
-  </div>
-</div>
+              <form action="" method="post"  id="gh_owner_add">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>User name</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gh_owner" placeholder="Owner/Organization" name="owner">
+                    <input type="hidden" name="backend" value="github">
+                    <input type="hidden" name="action" value="add">
 
-<div class="modal fade" id="logModal" tabindex="-1" role="dialog" aria-labelledby="logModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="logModalLabel">Repository logs</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div id="logger-body">
-          <pre class="logger"><code class="log-content">Loading...</code></pre>
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+            </div>
+            
+            <div class="card-footer">
+              <span class="text-muted">This will add to the analysis:</span>
+              <ul>
+                <li class="text-muted" style="list-style: none;">GitHub repositories</li>
+                <li class="text-muted" style="list-style: none;">Git repositories</li>
+              </ul>
+            </div>
+            
+          </div>
+          <!-- end GITHUB CARD -->
+
+          <!-- GIT CARD -->
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <div class="title">Git</div>
+            </div>
+            <div class="card-body">
+
+              <form action="" method="post" id="gl_url_add">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="git_url" placeholder="Enter URL" name="url">
+                    <input type="hidden" name="backend" value="git">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+          <!-- end GIT CARD -->
+
+          <!-- GITLAB CARD -->
+          <div class="card shadow-sm">
+
+            <div class="card-header">
+              <div class="title">
+                <b>
+                  Gitlab
+                </b>
+              </div>
+            </div>
+
+            <div class="card-body">
+
+              <form action="" method="post" id="gl_url_add">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>Single repository</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gl_url" placeholder="Enter URL" name="url">
+                    <input type="hidden" name="backend" value="gitlab">
+                    <input type="hidden" name="action" value="add">
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <form action="" method="post" id="gl_owner_add">
+                {% csrf_token %}
+                <div class="form-group">
+                  <label>User name</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="gl_owner" placeholder="Owner/Organization" name="owner">
+                    <input type="hidden" name="backend" value="gitlab">
+                    <input type="hidden" name="action" value="add">
+
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            
+            <div class="card-footer">
+                <span class="text-muted">This will add to the analysis:</span>
+                <ul>
+                  <li class="text-muted" style="list-style: none;">Gitlab repositories</li>
+                  <li class="text-muted" style="list-style: none;">Git repositories</li>
+                </ul>
+            </div>
+            
+  
+
+          </div>
+          <!-- end GITLAB CARD -->
+  
+        </div>
+        {% endif %}
+
+        <!-- LIST REPOS SIDE -->
+        {% if editable %}
+        <div class="col-md-9">
+        {% else %}
+        <div class="col-md-12">
+        {% endif %}
+          <div class="container">
+              <div class="header-dashboard">
+                  {% if dashboard %}
+                    <h3>Control panel for '{{dashboard.name}}'</strong></h3>
+                  {% else %}
+                    <h3>Dashboard not found</h3>
+                  {% endif %}
+                </div>
+
+            <div class="body-dashboard pt-2">
+              {% if dashboard %}
+              <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                <button class="btn btn-outline-primary active" id="option-all">
+                  <input type="radio" name="options" autocomplete="off" checked> All <span class="badge badge-primary badge-repos-all">{{ repositories | length }}</span>
+                </button>
+                <button class="btn btn-outline-primary" id="option-github">
+                  <input type="radio" name="options" autocomplete="off"> GitHub <span class="badge badge-primary badge-repos-gh">{{ gh_repositories | length }}</span>
+                </button>
+                <button class="btn btn-outline-primary" id="option-gitlab">
+                  <input type="radio" name="options" autocomplete="off"> GitLab <span class="badge badge-primary badge-repos-gl">{{ gl_repositories | length }}</span>
+                </button>
+                <button class="btn btn-outline-primary" id="option-git">
+                  <input type="radio" name="options" autocomplete="off"> Git <span class="badge badge-primary badge-repos-git">{{ git_repositories | length }}</span>
+                </button>
+              </div>
+              <div>
+                <br>
+                <table class="table table-hover repos-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="text-muted">Status</th>
+                      <th scope="col">Repository</th>
+                      <th scope="col">Creation</th>
+                      <th scope="col">Duration</th>
+                      <th scope="col">Logs</th>
+                      {% if editable %}
+                      <th scope="col">Delete</th>
+                      {% endif %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for repo in repositories %}
+                    <tr class="repo-entry" id="repo-{{repo.id}}" data-backend="{{repo.backend}}">
+                      <td class="repo-status">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                          <span class="sr-only">Loading...</span>
+                        </div>
+                      </td>
+                      <td class="repo-url">{{ repo.url }}</td>
+                      <td>
+                        <i class="fas fa-calendar-alt text-muted"></i> 
+                        <span class="repo-creation">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                              <span class="sr-only">Loading...</span>
+                            </div>
+                        </span>
+                      </td>
+                      <td>
+                        <i class="fas fa-stopwatch text-muted"></i>
+                        <span class="repo-duration">
+                          <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="sr-only">Loading...</span>
+                          </div>
+                        </span>
+                      </td>
+                      <td>
+                        <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#logModal" data-repo="{{repo.id}}">Logs</button>
+                      </td>
+                      {% if editable %}
+                      <td>
+                          <button type="button" class="btn btn-outline-danger btn-delete" data-repo="{{repo.id}}">Delete</button>
+                      </td>
+                      {% endif %}
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+        
+              {% endif %}
+          </div>
+        </div>
+              
+            
+        <!--
+          <div class="card card-table shadow-sm">
+            <div class="card-header">
+              Repositories included
+            </div>
+            <div class="card-body table-responsive">
+              <p><b>GitHub</b> <span class="badge badge-dark">{{ gh_repositories | length }}</span></p>
+              {% if gh_repositories %}
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in gh_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+              <p><b>Gitlab</b>  <span class="badge badge-dark">{{ gl_repositories | length }}</span></p>
+              {% if gl_repositories %}
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in gl_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+              <p><b>Git</b>  <span class="badge badge-dark">{{ git_repositories | length }}</span></p>
+              {% if git_repositories %}
+              <table class="table table-hover repos-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Repository</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for repo in git_repositories %}
+                  <tr>
+                    <td>{{ repo.url }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+            </div>
+          </div>
+        -->
         </div>
       </div>
     </div>
-  </div>
-</div>
+
+    <div class="modal fade" id="logModal" tabindex="-1" role="dialog" aria-labelledby="logModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="logModalLabel">Repository logs</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div id="logger-body">
+              <pre class="logger"><code class="log-content">Loading...</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+      
+      
 
 {% endblock %}
+
 
 {% block javascript %}
 <script src='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.5/jquery-ui.min.js'>
 </script><script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
 <script src="{% static 'js/dashboard.js' %}" charset="utf-8"></script>
-
 {% endblock %}
