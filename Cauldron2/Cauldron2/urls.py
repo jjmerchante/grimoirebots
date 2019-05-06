@@ -25,7 +25,7 @@ urlpatterns = [
     # path('create-dashboard', views.create_dashboard),
     path('new-dashboard', views.request_new_dashboard),
     path('dashboard/<int:dash_id>/edit', views.request_edit_dashboard),
-    path('dashboard/<int:dash_id>/run', views.request_run_dashboard),
+    # path('dashboard/<int:dash_id>/run', views.request_run_dashboard),
     path('dashboard/<int:dash_id>', views.request_show_dashboard),
 
     path('dashboard-status/<slug:dash_name>', views.dash_status),

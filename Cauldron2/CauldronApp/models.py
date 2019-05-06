@@ -30,7 +30,6 @@ class Dashboard(models.Model):
                                 on_delete=models.SET_NULL,
                                 blank=True,
                                 null=True)
-    started = models.BooleanField()
 
 
 class Repository(models.Model):

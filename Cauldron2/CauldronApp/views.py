@@ -2,7 +2,6 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect, JsonResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
-from django.views.decorators.csrf import ensure_csrf_cookie
 
 import os
 import logging
@@ -33,8 +32,6 @@ def homepage(request):
     dashboards = Dashboard.objects.filter()
     context_dbs = []
     for db in dashboards:
-        if not db.started:
-            continue
         status = get_dashboard_status(db.name)
 
         completed = sum(1 for repo in status['repos'] if repo['status'] == 'COMPLETED')
@@ -54,7 +51,6 @@ def homepage(request):
                                      'id': db.id,
                                      'name': db.name,
                                      'completed': completed,
-                                     'started': db.started,
                                      'total': len(status['repos'])})
     else:
         context_your_dbs = []
@@ -437,45 +433,45 @@ def start_task(repo, user, restart=False):
             new_task.save()
 
 
-def request_run_dashboard(request, dash_id):
-    """
-    When a Dashboard is completed, you can run it and this method start the task
-    for those repositories that aren't being analyzed os hasn't been analyzed
-    :param request:
-    :param dash_id: Id for the dashboard to start to analyze
-    :return:
-    """
-    if not request.user.is_authenticated:
-        return render(request, 'error.html', status=403,
-                      context={'title': 'Forbidden',
-                               'description': "You are not allowed to run this dashboard. "
-                                              "Only the creator can. Log in first"})
-    dash = Dashboard.objects.filter(id=dash_id).first()
-    if not dash:
-        return render(request, 'error.html', status=404,
-                      context={'title': 'Dashboard not found',
-                               'description': "The dashboard you want to run doesn't exist in this server"})
-    if request.user != dash.creator:
-        return render(request, 'error.html', status=403,
-                      context={'title': 'Forbidden',
-                               'description': "You are not allowed to run this dashboard. Only the creator can."})
-
-    if dash.started:
-        # TODO: Dashboard started cannot be started again. Can be modified and start it again?
-        return render(request, 'error.html', status=403,
-                  context={'title': 'Dashboard already started',
-                           'description': "Run the same dashboard again is not implemented"})
-
-    repos = Repository.objects.filter(dashboards__id=dash_id)
-    for repo in repos:
-        task = Task.objects.filter(repository=repo).first()
-        completed_task = CompletedTask.objects.filter(repository=repo).first()
-        if not task and not completed_task:
-            new_task = Task(repository=repo, user=request.user)
-            new_task.save()
-    dash.started = True
-    dash.save()
-    return HttpResponseRedirect("/dashboard/{}".format(dash_id))
+# def request_run_dashboard(request, dash_id):
+#     """
+#     When a Dashboard is completed, you can run it and this method start the task
+#     for those repositories that aren't being analyzed os hasn't been analyzed
+#     :param request:
+#     :param dash_id: Id for the dashboard to start to analyze
+#     :return:
+#     """
+#     if not request.user.is_authenticated:
+#         return render(request, 'error.html', status=403,
+#                       context={'title': 'Forbidden',
+#                                'description': "You are not allowed to run this dashboard. "
+#                                               "Only the creator can. Log in first"})
+#     dash = Dashboard.objects.filter(id=dash_id).first()
+#     if not dash:
+#         return render(request, 'error.html', status=404,
+#                       context={'title': 'Dashboard not found',
+#                                'description': "The dashboard you want to run doesn't exist in this server"})
+#     if request.user != dash.creator:
+#         return render(request, 'error.html', status=403,
+#                       context={'title': 'Forbidden',
+#                                'description': "You are not allowed to run this dashboard. Only the creator can."})
+#
+#     if dash.started:
+#         # TODO: Dashboard started cannot be started again. Can be modified and start it again?
+#         return render(request, 'error.html', status=403,
+#                   context={'title': 'Dashboard already started',
+#                            'description': "Run the same dashboard again is not implemented"})
+#
+#     repos = Repository.objects.filter(dashboards__id=dash_id)
+#     for repo in repos:
+#         task = Task.objects.filter(repository=repo).first()
+#         completed_task = CompletedTask.objects.filter(repository=repo).first()
+#         if not task and not completed_task:
+#             new_task = Task(repository=repo, user=request.user)
+#             new_task.save()
+#     dash.started = True
+#     dash.save()
+#     return HttpResponseRedirect("/dashboard/{}".format(dash_id))
 
 
 def request_new_dashboard(request):
@@ -501,7 +497,7 @@ def request_new_dashboard(request):
         login(request, dj_user)
 
     # Create a new dashboard
-    dash = Dashboard.objects.create(name=generate_random_uuid(length=12), creator=request.user, started=False)
+    dash = Dashboard.objects.create(name=generate_random_uuid(length=12), creator=request.user)
     dash.name = "Dashboard_{}".format(dash.id)
     dash.save()
 
