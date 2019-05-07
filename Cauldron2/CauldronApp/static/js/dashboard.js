@@ -74,11 +74,11 @@ function deleteRepo(event) {
     $.post(url = window.location.pathname + "/edit", 
            data = {'action': 'delete', 'backend': backend, 'url': url_repo})
         .done(function (data) {
-            showAlert('Deleted', `The repository ${url_repo} was deleted from this dashboard`, 'success');
+            showToast('Deleted', `The repository <b>${url_repo}</b> was deleted from this dashboard`, 'fas fa-check-circle text-success', 5000);
             $(`tr#repo-${id_repo}`).remove();
         })
         .fail(function (data) {
-            showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
+            showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
         })
         .always(function(){deleteBtn.html('Delete')})
 
@@ -234,13 +234,13 @@ function submitURL(event) {
 }
 
 function onURLAdded(data, target) {
-    showAlert(`Success`, `URL added correctly. Reloading the list of repositories`, 'success');
+    showToast('Success', `URL added correctly. Reloading the list of repositories...`, 'fas fa-spinner text-success', 5000);
     setTimeout(function(){window.location.reload()}, 2000);
 }
 
 function onURLFail(data, target) {
     if(!data.hasOwnProperty('responseJSON')){
-        showAlert(`Unknown error from server`, data.responseText, 'danger')    
+        showToast('Unknown error from server', `${data.responseText}`, 'fas fa-question-circle text-danger', 5000);
         return;
     }
     if (data.responseJSON.hasOwnProperty('redirect')){
@@ -254,7 +254,7 @@ function onURLFail(data, target) {
         showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
         setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
     } else {
-        showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
+        showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
     }
 }
 
@@ -276,13 +276,13 @@ function submitOwner(event) {
 }
 
 function onOwnerAdded(data, target) {
-    showAlert(`Success`, `User/organization added correctly. Reloading the list of repositories`, 'success');
+    showToast('Success', `User/organization added correctly. Reloading the list of repositories...`, 'fas fa-spinner text-success', 5000);
     setTimeout(function(){window.location.reload()}, 2000);
 }
 
 function onOwnerFail(data, target) {
     if(!data.hasOwnProperty('responseJSON')){
-        showAlert(`Unknown error from server`, data.responseText, 'danger')    
+        showToast('Unknown error from server', `${data.responseText}`, 'fas fa-question-circle text-danger', 5000);
         return;
     }
     if (data.responseJSON.hasOwnProperty('redirect')){
@@ -297,6 +297,6 @@ function onOwnerFail(data, target) {
         showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
         setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
     } else {
-        showAlert(`Failed`, `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'danger');
+        showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
     }
 }
