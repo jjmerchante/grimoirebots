@@ -249,10 +249,8 @@ function onURLFail(data, target) {
             window.localStorage.setItem('location', window.location.href);
             window.localStorage.setItem(input_target.attr('id'), input_target.val());
         }
-        var a_redirect = `<a href="${data.responseJSON['redirect']}"> Redirect now</a>`
-        var redirect_message =  "<p>Redirecting in 5 seconds to the Oauth page...</p>"
-        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
-        setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
+        var a_redirect = `<a href="${data.responseJSON['redirect']}" class="btn btn-primary"> Go</a>`;
+        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p>`,  a_redirect);
     } else {
         showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
     }
@@ -292,9 +290,8 @@ function onOwnerFail(data, target) {
             window.localStorage.setItem(input_target.attr('id'), input_target.val());
         }
 
-        var a_redirect = `<a href="${data.responseJSON['redirect']}"> Redirect now</a>`;
-        var redirect_message =  "<p>Redirecting in 5 seconds to the Oauth page...</p>"
-        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p> ${redirect_message} ${a_redirect}`);
+        var a_redirect = `<a href="${data.responseJSON['redirect']}" class="btn btn-primary"> Go</a>`;
+        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p>`,  a_redirect);
         setTimeout(function(){window.location.href = data.responseJSON['redirect']}, 5000);
     } else {
         showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);

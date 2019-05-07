@@ -101,11 +101,14 @@ function showToast(title, message, icon_class, time) {
 /**
  * Show a modal with the title and the message passed
  */
-function showModalAlert(title, message) {
+function showModalAlert(title, message, footer) {
     $('#modal-alert').modal('hide');
     $('#modal-alert h5').html(title);
     $('#modal-alert p').html(message);
     $('#modal-alert').modal('show');
+    if (footer != undefined){
+        $('#modal-alert .modal-footer').html(footer);
+    }
 }
 
 /**
