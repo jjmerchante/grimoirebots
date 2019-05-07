@@ -389,8 +389,8 @@ def request_edit_dashboard(request, dash_id):
         if owner:
             try:
                 gitlab_list, git_list = get_gl_repos(owner, request.user.gitlabuser.token)
-            except Exception:
-                logging.warning("Error for Gitlab owner {}".format(owner))
+            except Exception as e:
+                logging.warning("Error for Gitlab owner {}: {}".format(owner, e.error_message))
                 return JsonResponse({'status': 'error', 'message': 'Error from GitLab API. Does that user exist?'},
                                     status=500)
 
@@ -814,8 +814,10 @@ def get_gl_repos(owner, token):
     # TODO: Token modify to auth token
     gl = Gitlab(url='https://gitlab.com', private_token=token)
     gl.auth()
-    user = gl.users.list(username=owner)[0]
-    if not user:
+    users = gl.users.list(username=owner)
+    if len(users) > 0:
+        user = users[0]
+    else:
         user = gl.groups.get(owner)
 
     repos = user.projects.list(visibility='public')
