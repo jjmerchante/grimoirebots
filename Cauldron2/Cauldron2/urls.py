@@ -21,16 +21,14 @@ urlpatterns = [
     path('github-login', views.request_github_login_callback),
     path('gitlab-login', views.request_gitlab_login_callback),
     path('logout', views.request_logout),
+    path('delete-token', views.request_delete_token),
 
-    # path('create-dashboard', views.create_dashboard),
     path('new-dashboard', views.request_new_dashboard),
     path('dashboard/<int:dash_id>/edit', views.request_edit_dashboard),
-    # path('dashboard/<int:dash_id>/run', views.request_run_dashboard),
     path('dashboard/<int:dash_id>', views.request_show_dashboard),
 
     path('dashboard-status/<slug:dash_name>', views.dash_status),
     path('dashboard-info/<int:dash_id>', views.request_dash_info),
-    # path('task-logs/<int:task_id>', views.task_logs),
     path('repo-logs/<int:repo_id>', views.repo_logs),
 
     path('', views.homepage),

@@ -243,53 +243,6 @@ def request_logout(request):
     return HttpResponseRedirect('/')
 
 
-# def create_dashboard(request):
-#     if request.method != 'POST':
-#         return render(request, 'error.html', status=405,
-#                       context={'title': 'Method Not Allowed',
-#                                'description': "Only POST methods allowed"})
-#     if not request.user.is_authenticated:
-#         return render(request, 'error.html', status=403,
-#                       context={'title': 'Log in first',
-#                                'description': "Log in with your github account first <a href='/'>go homepage</a>"})
-#     repo_url = request.POST.get('url', None)
-#     org_name = request.POST.get('gh-org', None)
-#
-#     if repo_url:
-#         # TODO: owner/repository format
-#         if not valid_github_url(repo_url):
-#             return render(request, 'error.html', status=400,
-#                           context={'title': 'Invalid URL',
-#                                    'description': "Are you sure it's a GitHub URL? Don't try to break me :)"})
-#         owner, repo_name = parse_gh_url(repo_url)
-#         dash_name = "{}-{}".format(owner, repo_name)
-#
-#         dash, created = Dashboard.objects.get_or_create(name=dash_name, defaults={'creator': request.user})
-#         if created:
-#             fill_dashboard(dash, [repo_url + '.git'], [repo_url], request.user.githubuser)
-#         return HttpResponseRedirect('/dashboard/' + dash.name)
-#
-#     elif org_name:
-#         dash, created = Dashboard.objects.get_or_create(name=org_name, defaults={'creator': request.user})
-#         if created:
-#             gh_sync = GitHubSync(request.user.githubuser.token)
-#             try:
-#                 git_list, github_list = gh_sync.get_repo(org_name, False)
-#             except Exception:
-#                 logging.warning("Error for GitHub owner {}".format(org_name))
-#                 dash.delete()
-#                 return render(request, 'error.html', status=404,
-#                               context={'title': 'Github API error',
-#                                        'description': "Error getting the repositories for that owner"})
-#
-#             fill_dashboard(dash, git_list, github_list, request.user.githubuser)
-#         return HttpResponseRedirect('/dashboard/' + dash.name)
-#     else:
-#         return render(request, 'error.html', status=404,
-#                       context={'title': 'URL/owner not found',
-#                                'description': "We need URL, user or organization for analyzing"})
-
-
 # TODO: Add state
 def request_edit_dashboard(request, dash_id):
     dash = Dashboard.objects.filter(id=dash_id).first()
@@ -431,47 +384,6 @@ def start_task(repo, user, restart=False):
         if restart or not CompletedTask.objects.filter(repository=repo).first():
             new_task = Task(repository=repo, user=user)
             new_task.save()
-
-
-# def request_run_dashboard(request, dash_id):
-#     """
-#     When a Dashboard is completed, you can run it and this method start the task
-#     for those repositories that aren't being analyzed os hasn't been analyzed
-#     :param request:
-#     :param dash_id: Id for the dashboard to start to analyze
-#     :return:
-#     """
-#     if not request.user.is_authenticated:
-#         return render(request, 'error.html', status=403,
-#                       context={'title': 'Forbidden',
-#                                'description': "You are not allowed to run this dashboard. "
-#                                               "Only the creator can. Log in first"})
-#     dash = Dashboard.objects.filter(id=dash_id).first()
-#     if not dash:
-#         return render(request, 'error.html', status=404,
-#                       context={'title': 'Dashboard not found',
-#                                'description': "The dashboard you want to run doesn't exist in this server"})
-#     if request.user != dash.creator:
-#         return render(request, 'error.html', status=403,
-#                       context={'title': 'Forbidden',
-#                                'description': "You are not allowed to run this dashboard. Only the creator can."})
-#
-#     if dash.started:
-#         # TODO: Dashboard started cannot be started again. Can be modified and start it again?
-#         return render(request, 'error.html', status=403,
-#                   context={'title': 'Dashboard already started',
-#                            'description': "Run the same dashboard again is not implemented"})
-#
-#     repos = Repository.objects.filter(dashboards__id=dash_id)
-#     for repo in repos:
-#         task = Task.objects.filter(repository=repo).first()
-#         completed_task = CompletedTask.objects.filter(repository=repo).first()
-#         if not task and not completed_task:
-#             new_task = Task(repository=repo, user=request.user)
-#             new_task.save()
-#     dash.started = True
-#     dash.save()
-#     return HttpResponseRedirect("/dashboard/{}".format(dash_id))
 
 
 def request_new_dashboard(request):
@@ -682,6 +594,41 @@ def request_show_dashboard(request, dash_id):
     return render(request, 'dashboard.html', context=context)
 
 
+def request_delete_token(request):
+    """
+    Function for deleting a token from a user.
+    It deletes the tasks associate with that token
+    :param request
+    :return:
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Only POST methods allowed'}, status=405)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'You are not logged in'}, status=401)
+
+    identity = request.POST.get('identity', None)
+    if identity == 'github':
+        if hasattr(request.user, 'githubuser'):
+            request.user.githubuser.delete()
+            tasks = Task.objects.filter(user=request.user)
+            for task in tasks:
+                if task.repository.backend == 'github':
+                    task.delete()
+        return JsonResponse({'status': 'ok'})
+
+    elif identity == 'gitlab':
+        if hasattr(request.user, 'gitlabuser'):
+            request.user.gitlabuser.delete()
+            tasks = Task.objects.filter(user=request.user)
+            for task in tasks:
+                if task.repository.backend == 'gitlab':
+                    task.delete()
+        return JsonResponse({'status': 'ok'})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Unkown identity: {}'.format(identity)})
+
+
 def create_context(request):
     """
     Create a new context dict with some common information among views
@@ -698,16 +645,20 @@ def create_context(request):
     context['gl_uri_redirect'] = request.build_absolute_uri(GL_REDIRECT_PATH)
 
     # Information for the photo and the profile
+    context['authenticated'] = request.user.is_authenticated
     if hasattr(request.user, 'githubuser'):
-        context['authenticated'] = True
         context['auth_user_username'] = request.user.githubuser.username
         context['photo_user'] = request.user.githubuser.photo
     elif hasattr(request.user, 'gitlabuser'):
-        context['authenticated'] = True
         context['auth_user_username'] = request.user.gitlabuser.username
         context['photo_user'] = request.user.gitlabuser.photo
     else:
-        context['authenticated'] = False
+        context['auth_user_username'] = 'Unknown'
+        context['photo_user'] = '/static/img/profile-default.png'
+
+    # Information about the accounts connected
+    context['github_enabled'] = hasattr(request.user, 'githubuser')
+    context['gitlab_enabled'] = hasattr(request.user, 'gitlabuser')
 
     return context
 

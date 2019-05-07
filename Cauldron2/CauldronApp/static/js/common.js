@@ -12,6 +12,22 @@ $(document).ready(function () {
     });
     LocalStorageAvailable = checkLocalStorage()
     loadLastLocation();
+    $('#delete-gh-token').click(function(ev){
+        showModalAlert('Do you want to delete your GitHub token?', 
+                       'We will delete your personal Token from our server. If you delete it, all the pending tasks for that token will be stopped.',
+                       `<button type="button" class="btn btn-secondary" data-dismiss="modal" aria-label="Close">No</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteToken('github')" data-dismiss="modal">Yes</button>` 
+        )
+        ev.preventDefault();
+    });
+    $('#delete-gl-token').click(function(ev){
+        showModalAlert('Do you want to delete your Gitlab token?', 
+                       'We will delete your personal Token from our server. If you delete it, all the pending tasks for that token will be stopped.',
+                       `<button type="button" class="btn btn-secondary" data-dismiss="modal" aria-label="Close">No</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteToken('gitlab')" data-dismiss="modal">Yes</button>` 
+        )
+        ev.preventDefault();
+    });
 });
 
 
@@ -125,3 +141,26 @@ function loadLastLocation() {
         window.location.href = location;
     }
 }
+
+
+/**
+ * Delete the token of the user for the defined backend
+ */
+function deleteToken(identity) {
+    $.post(url = "/delete-token", 
+           data = {'identity': identity})
+        .done(function (data) {
+            showToast('Deleted', `Your <b>${identity} token</b> has been removed and all the associated tasks`, 'fas fa-check-circle text-success', 5000);
+        })
+        .fail(function (data) {
+            if(!data.hasOwnProperty('responseJSON')){
+                showToast('Unknown error from server', `Internal error.`, 'fas fa-question-circle text-danger', 5000);
+                console.log(data.responseText);
+                return;
+            }
+            showToast('Failed', `There was a problem: ${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
+        })
+        .always(function(){
+            setTimeout(window.location.reload.bind(window.location), 2000)
+        })
+ }

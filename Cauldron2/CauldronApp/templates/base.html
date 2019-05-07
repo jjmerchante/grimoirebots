@@ -33,6 +33,12 @@
             
           <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
             <a class="dropdown-item" href="/logout">Log out</a>
+            {% if github_enabled %}
+            <a class="dropdown-item" id="delete-gh-token" class="text-danger" href="">Delete my Github token</a>
+            {% endif %}
+            {% if gitlab_enabled %}
+            <a class="dropdown-item" id="delete-gl-token" href="">Delete my Gitlab token</a>
+            {% endif %}
             <!--<a class="dropdown-item" href="/profile">Profile</a>-->
           </div>
         </div>
@@ -118,7 +124,7 @@
     <!-- BEGIN Toast list for notifications-->
     <div aria-live="polite" aria-atomic="true" style="position: fixed; width: 100%; bottom: 50px; z-index: 9999;">
       <!-- Position it -->
-      <div style="position: absolute; bottom: 0; right: 0;" id="toast-container">
+      <div style="position: absolute; bottom: 0; right: 0; overflow: scroll" id="toast-container">
    
       </div>
     </div>
