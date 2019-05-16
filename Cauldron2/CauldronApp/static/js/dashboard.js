@@ -1,4 +1,6 @@
 var LogsInterval;
+var BackendFilter = 'any';
+var StatusFilter = 'all';
 
 $(document).ready(function(){
     var dash_id = window.location.pathname.split('/')[2];
@@ -13,7 +15,7 @@ $(document).ready(function(){
 
     $('.btn-delete').click(deleteRepo);
 
-    loadCallbackFilters();
+    $('#collapseFilters a').click(onFilterClick);
 });
 
 function loadLastStatus(){
@@ -34,30 +36,34 @@ function loadLastStatus(){
     $('#gl_url').val(gl_url);
 }
 
-function loadCallbackFilters(){
-    $('button#option-all').click(function () {
-        $('tr[data-backend=git]').show();
-        $('tr[data-backend=gitlab]').show();
-        $('tr[data-backend=github]').show();
-    });
+function onFilterClick(ev) {
+    ev.preventDefault();
+    var filterType = $(this).data('filterType');
+    console.log($(this).data())
+    
+    if(filterType == 'status'){
+        StatusFilter = $(this).data('filter');
+    } else if (filterType == 'backend'){
+        BackendFilter = $(this).data('filter');
+    }
+    filterTable();
+}
 
-    $('button#option-github').click(function () {
-        $('tr[data-backend=git]').hide();
-        $('tr[data-backend=gitlab]').hide();
-        $('tr[data-backend=github]').show();
-    });
-
-    $('button#option-git').click(function () {
-        $('tr[data-backend=git]').show();
-        $('tr[data-backend=gitlab]').hide();
-        $('tr[data-backend=github]').hide();
-    });
-
-    $('button#option-gitlab').click(function () {
-        $('tr[data-backend=git]').hide();
-        $('tr[data-backend=gitlab]').show();
-        $('tr[data-backend=github]').hide();
-    });
+function filterTable() {
+    var num_filtered = 0;
+    $('table.repos-table tbody tr').each(function(i, elem){
+        var statusOK = (StatusFilter == 'all' || $(elem).data('status') == StatusFilter);
+        var backendOK = (BackendFilter == 'any' || $(elem).data('backend') == BackendFilter);
+        if ( statusOK && backendOK ){
+            $(elem).show();
+            num_filtered += 1;
+        } else {
+            $(elem).hide();
+        }
+    })
+    $('#num-repos-filter').html(num_filtered);
+    $('#badge-filter-status').html(`status: ${StatusFilter}`);
+    $('#badge-filter-backend').html(`backend: ${BackendFilter}`);
 }
 
 function deleteRepo(event) {
@@ -90,10 +96,9 @@ function getInfo(dash_id) {
         if (!data || !data.exists){
             return
         }
-        updateBadgesRepos(data.repos);
         data.repos.forEach(function(repo){
             setIconStatus('#repo-' + repo.id + ' .repo-status', repo.status);
-            
+            $('#repo-' + repo.id).attr('data-status', repo.status.toLowerCase());
             $('#repo-' + repo.id + " .repo-creation").html(moment(repo.created).fromNow());
             var duration = get_duration(repo);
             $('#repo-' + repo.id + " .repo-duration").html(duration);
@@ -104,6 +109,7 @@ function getInfo(dash_id) {
             setTimeout(getInfo, 5000, dash_id);
         }
     }); 
+    filterTable();
 }
 
 function setIconStatus(jq_selector, status) {
@@ -249,8 +255,8 @@ function onURLFail(data, target) {
             window.localStorage.setItem('location', window.location.href);
             window.localStorage.setItem(input_target.attr('id'), input_target.val());
         }
-        var a_redirect = `<a href="${data.responseJSON['redirect']}" class="btn btn-primary"> Go</a>`;
-        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p>`,  a_redirect);
+        var redirect = `<a href="${data.responseJSON['redirect']}" class="btn btn-primary"> Go</a>`;
+        showModalAlert('We can not add it right now...', `<p><b>${data.responseJSON['message']}</b></p>`,  redirect);
     } else {
         showToast('Failed', `${data.responseJSON['status']} ${data.status}: ${data.responseJSON['message']}`, 'fas fa-times-circle text-danger', 5000);
     }
