@@ -366,7 +366,15 @@ def request_edit_dashboard(request, dash_id):
 
         return JsonResponse({'status': 'ok'})
 
-    # TODO: Implement GIT
+    elif backend == 'git':
+        if not url:
+            return JsonResponse({'status': 'error', 'message': 'No URL found for git repository.'},
+                                status=400)
+        repo = add_to_dashboard(dash, backend, url)
+        start_task(repo, request.user, False)
+
+        return JsonResponse({'status': 'ok'})
+
     else:
         return JsonResponse({'status': 'error', 'message': 'Backend not found'},
                             status=400)
