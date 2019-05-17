@@ -38,13 +38,12 @@ function loadLastStatus(){
 
 function onFilterClick(ev) {
     ev.preventDefault();
-    var filterType = $(this).data('filterType');
-    console.log($(this).data())
+    var filterType = $(this).attr('data-filter-type');
     
     if(filterType == 'status'){
-        StatusFilter = $(this).data('filter');
+        StatusFilter = $(this).attr('data-filter');
     } else if (filterType == 'backend'){
-        BackendFilter = $(this).data('filter');
+        BackendFilter = $(this).attr('data-filter');
     }
     filterTable();
 }
@@ -52,8 +51,8 @@ function onFilterClick(ev) {
 function filterTable() {
     var num_filtered = 0;
     $('table.repos-table tbody tr').each(function(i, elem){
-        var statusOK = (StatusFilter == 'all' || $(elem).data('status') == StatusFilter);
-        var backendOK = (BackendFilter == 'any' || $(elem).data('backend') == BackendFilter);
+        var statusOK = (StatusFilter == 'all' || $(elem).attr('data-status') == StatusFilter);
+        var backendOK = (BackendFilter == 'any' || $(elem).attr('data-backend') == BackendFilter);
         if ( statusOK && backendOK ){
             $(elem).show();
             num_filtered += 1;
@@ -68,7 +67,7 @@ function filterTable() {
 
 function deleteRepo(event) {
     var id_repo = event.target.dataset['repo'];
-    var backend = $(`tr#repo-${id_repo}`).data('backend');
+    var backend = $(`tr#repo-${id_repo}`).attr('data-backend');
     var url_repo = $(`tr#repo-${id_repo} td.repo-url`).html();
 
     var deleteBtn = $(this);
@@ -181,7 +180,7 @@ function updateBadgesRepos(repo_arr) {
  ****************************/
 function onShowLogsModal(event) {
     var button = $(event.relatedTarget);
-    var id_repo = button.data('repo');
+    var id_repo = button.attr('data-repo');
     if (LogsInterval) {
         clearInterval(LogsInterval);
         LogsInterval = null;
