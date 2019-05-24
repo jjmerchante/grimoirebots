@@ -13,7 +13,7 @@ from github import Github
 from gitlab import Gitlab
 from slugify import slugify
 
-from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET, GL_PRIVATE_TOKEN
+from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET
 from CauldronApp.models import GithubUser, GitlabUser, Dashboard, Repository, Task, CompletedTask, AnonymousUser
 from CauldronApp.githubsync import GitHubSync
 
@@ -163,12 +163,8 @@ def request_gitlab_login_callback(request):
                       context={'title': 'Gitlab error',
                                'description': "Error getting the token from Gitlab endpoint"})
 
-    # TODO: Token modify to auth token. Modify all the TODOs with the same name
-    token = GL_PRIVATE_TOKEN
-
     # Authenticate/register an user, and login
-    # TODO: Token modify to auth token
-    gl = Gitlab(url='https://gitlab.com', private_token=token)
+    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
     gl.auth()
     username = gl.user.attributes['username']
     photo_url = gl.user.attributes['avatar_url']
@@ -385,7 +381,7 @@ def start_task(repo, user, restart=False):
     Start a new task for the given repository
     :param repo: Repository object to analyze
     :param user: User that make the analysis
-    :param restart: If the task is not pending or running, start it. Else only if not completed
+    :param restart: If the task is not pending or running, start it. Else only start if not completed before
     :return:
     """
     if not Task.objects.filter(repository=repo).first():
@@ -770,8 +766,7 @@ def get_repo_status(repo):
 
 
 def get_gl_repos(owner, token):
-    # TODO: Token modify to auth token
-    gl = Gitlab(url='https://gitlab.com', private_token=token)
+    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
     gl.auth()
     users = gl.users.list(username=owner)
     if len(users) > 0:
