@@ -13,7 +13,7 @@ from github import Github
 from gitlab import Gitlab
 from slugify import slugify
 
-from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET
+from Cauldron2.settings import GH_CLIENT_ID, GH_CLIENT_SECRET, GL_CLIENT_ID, GL_CLIENT_SECRET, GL_PRIVATE_TOKEN
 from CauldronApp.models import GithubUser, GitlabUser, Dashboard, Repository, Task, CompletedTask, AnonymousUser
 from CauldronApp.githubsync import GitHubSync
 
@@ -163,8 +163,11 @@ def request_gitlab_login_callback(request):
                       context={'title': 'Gitlab error',
                                'description': "Error getting the token from Gitlab endpoint"})
 
+    # TODO: Token modify to auth token. Modify all the TODOs with the same name
+    token = GL_PRIVATE_TOKEN
+
     # Authenticate/register an user, and login
-    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
+    gl = Gitlab(url='https://gitlab.com', private_token=token)
     gl.auth()
     username = gl.user.attributes['username']
     photo_url = gl.user.attributes['avatar_url']
@@ -766,7 +769,7 @@ def get_repo_status(repo):
 
 
 def get_gl_repos(owner, token):
-    gl = Gitlab(url='https://gitlab.com', oauth_token=token)
+    gl = Gitlab(url='https://gitlab.com', private_token=token)
     gl.auth()
     users = gl.users.list(username=owner)
     if len(users) > 0:
